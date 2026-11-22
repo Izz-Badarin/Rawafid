@@ -39,7 +39,9 @@ import {
   X,
   Award,
   Check,
-  MessageCircle
+  MessageCircle,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
 
 interface CartItem {
@@ -53,12 +55,16 @@ interface CartItem {
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'calculator' | 'shop' | 'ai-consultant' | 'projects' | 'contact'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'calculator' | 'bom-generator' | 'shop' | 'ai-consultant' | 'projects' | 'contact'>('home');
 
   // Calculator State
   const [monthlyBill, setMonthlyBill] = useState<number>(15000);
   const [facilityType, setFacilityType] = useState<string>('industrial');
   const [location, setLocation] = useState<string>('Riyadh, KSA');
+
+  // BOM Generator State
+  const [bomSystemKw, setBomSystemKw] = useState<number>(30);
+  const [selectedPanelWatt, setSelectedPanelWatt] = useState<number>(720);
 
   // AI Consultant State
   const [aiPrompt, setAiPrompt] = useState<string>('');
@@ -99,6 +105,15 @@ export default function App() {
   const annualSavings = estimatedMonthlySavings * 12;
   const roiYears = Number(Math.max(2.5, (estimatedSystemSize * 850 / (annualSavings || 1))).toFixed(1));
   const co2Offset = Math.round(estimatedSystemSize * 1.4);
+
+  // BOM Calculations
+  const totalPanelsCount = Math.ceil((bomSystemKw * 1000) / selectedPanelWatt);
+  const recommendedInverter = bomSystemKw <= 12 ? 'Deye 12kW 3-Phase Hybrid Inverter' : bomSystemKw <= 50 ? 'Deye 50kW Commercial Three-Phase Inverter' : 'Deye 100kW Industrial Grid-Tie Inverter System';
+  const recommendedBatteryKwh = Math.round(bomSystemKw * 0.8);
+  const estimatedDcCableMeters = bomSystemKw * 15;
+  const mc4PairsCount = Math.round(totalPanelsCount * 0.5);
+  const dcSpdCount = Math.ceil(bomSystemKw / 25);
+  const acBreakerAmps = Math.round((bomSystemKw * 1000) / (380 * 1.732) * 1.25);
 
   // Partners & Global Brands
   const partnerBrands = [
@@ -452,6 +467,9 @@ export default function App() {
           <button onClick={() => setActiveTab('shop')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'shop' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}
           </button>
+          <button onClick={() => setActiveTab('bom-generator')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'bom-generator' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
+            {lang === 'ar' ? 'حاسبة المكونات (BOM)' : 'System BOM Calculator'}
+          </button>
           <button onClick={() => setActiveTab('calculator')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'حاسبة الوفورات' : 'Savings Calculator'}
           </button>
@@ -528,36 +546,36 @@ export default function App() {
             <div className="relative z-10 max-w-5xl mx-auto text-center space-y-6">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{lang === 'ar' ? 'الوكيل المعتمد لألواح Jinko (440W - 720W) وأجهزة Deye' : 'Authorized Jinko & Deye Distributor'}</span>
+                <span>{lang === 'ar' ? 'جديدنا: حاسبة المكونات الهندسية (BOM) وألواح Jinko 720W' : 'New: System BOM Calculator & Jinko 720W'}</span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight max-w-4xl mx-auto">
                 {lang === 'ar'
-                  ? 'ألواح جينكو (440، 580، 620، 650، 720 واط) وأجهزة Deye'
-                  : 'Jinko Panels (440W to 720W) & Deye Systems Catalog'}
+                  ? 'منصة شركة روافد المتكاملة لحلول الطاقة المتجددة'
+                  : 'Rawafid Energy Solutions Comprehensive Platform'}
               </h1>
 
               <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
                 {lang === 'ar'
-                  ? 'استعرض أحدث منتجات وأجهزة Deye وألواح Jinko الشمسية بكل المقاسات واكسسوارات التركيب دون أسعار، مع إمكانية طلب عرض سعر مخصص.'
-                  : 'Explore official Deye devices, Jinko panels in all sizes, and mounting accessories without prices. Request a custom quote.'}
+                  ? 'اكتشف أحدث إضافاتنا: حاسبة حصر المكونات الهندسية (BOM)، معرض ألواح جينكو بكل المقاسات، أجهزة Deye، وتواصل فوري عبر واتساب.'
+                  : 'Discover our new additions: Automated System BOM Calculator, Jinko panels catalog, Deye systems, and instant WhatsApp chat.'}
               </p>
 
               <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
                 <button
-                  onClick={() => setActiveTab('shop')}
+                  onClick={() => setActiveTab('bom-generator')}
                   className="px-6 py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all flex items-center gap-2"
                 >
-                  <ShoppingBag className="w-4 h-4" />
-                  <span>{lang === 'ar' ? 'تصفح معرض المنتجات والأنظمة' : 'Browse Products Catalog'}</span>
+                  <FileSpreadsheet className="w-4 h-4" />
+                  <span>{lang === 'ar' ? 'حاسبة المكونات الهندسية (BOM)' : 'System BOM Calculator'}</span>
                 </button>
 
                 <button
-                  onClick={() => setActiveTab('calculator')}
+                  onClick={() => setActiveTab('shop')}
                   className="px-6 py-3.5 text-sm font-bold text-slate-100 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl backdrop-blur-md transition-all flex items-center gap-2"
                 >
-                  <Calculator className="w-4 h-4 text-amber-400" />
-                  <span>{lang === 'ar' ? 'حاسبة وفورات الطاقة' : 'Energy Savings Calculator'}</span>
+                  <ShoppingBag className="w-4 h-4 text-amber-400" />
+                  <span>{lang === 'ar' ? 'معرض المنتجات بدون أسعار' : 'Products Catalog'}</span>
                 </button>
               </div>
 
@@ -742,6 +760,128 @@ export default function App() {
                   ? 'محولات ديي الهجينة من 5 كيلوواط وحتى 50 كيلوواط ثلاثية الطور وخزانات بطاريات الليثيوم عالية الجهد.'
                   : 'Deye hybrid inverters from 5kW to 50kW three-phase and high voltage lithium BESS storage units.'}
               </p>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* System BOM Generator Tab (NEW ADDITION) */}
+      {activeTab === 'bom-generator' && (
+        <main className="py-16 px-6 max-w-6xl mx-auto space-y-12">
+          <div className="text-center max-w-3xl mx-auto space-y-4">
+            <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+              {lang === 'ar' ? 'أداة حصر وتوليد المكونات الهندسية (BOM)' : 'Automated System BOM Generator'}
+            </h2>
+            <h3 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+              {lang === 'ar' ? 'حاسبة جدول الكميات ومواصفات النظام الشمسى' : 'Solar System Bill of Materials & Sizing Calculator'}
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400">
+              {lang === 'ar'
+                ? 'حدد السعة المطلوبة لمشروعك وقدرة ألواح Jinko، وسيقوم النظام تلقائياً بحساب جدول الكميات والمكونات الهندسية الدقيقة لإرسالها للمهندسين.'
+                : 'Select your target system capacity and Jinko panel wattage, and the system automatically computes exact BOM and hardware quantities.'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Input Form */}
+            <div className="lg:col-span-5 glass-panel p-8 rounded-2xl space-y-6">
+              <h4 className="text-lg font-bold border-b border-slate-200 dark:border-slate-800 pb-4">
+                {lang === 'ar' ? 'معلمات تصميم النظام الشمسي' : 'System Design Parameters'}
+              </h4>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  {lang === 'ar' ? 'سعة النظام المطلوبة (كيلوواط - kW)' : 'Target System Capacity (kW)'}
+                </label>
+                <div className="flex items-center gap-4">
+                  <input
+                    type="range"
+                    min="5"
+                    max="200"
+                    step="5"
+                    value={bomSystemKw}
+                    onChange={(e) => setBomSystemKw(Number(e.target.value))}
+                    className="w-full accent-amber-600 cursor-pointer"
+                  />
+                  <span className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400 shrink-0">
+                    {bomSystemKw} kW
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  {lang === 'ar' ? 'قدرة لوح Jinko المفضل' : 'Preferred Jinko Panel Wattage'}
+                </label>
+                <select
+                  value={selectedPanelWatt}
+                  onChange={(e) => setSelectedPanelWatt(Number(e.target.value))}
+                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                >
+                  <option value={440}>{lang === 'ar' ? '440 واط (سكني)' : '440W Residential'}</option>
+                  <option value={580}>{lang === 'ar' ? '580 واط (تجاري)' : '580W Commercial'}</option>
+                  <option value={620}>{lang === 'ar' ? '620 واط (صناعي)' : '620W Industrial'}</option>
+                  <option value={650}>{lang === 'ar' ? '650 واط (محطات)' : '650W Utility'}</option>
+                  <option value={720}>{lang === 'ar' ? '720 واط ألترا (الجيل الجديد)' : '720W Ultra Bifacial'}</option>
+                </select>
+              </div>
+
+              <button
+                onClick={() => setActiveTab('contact')}
+                className="w-full py-3.5 text-xs font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Send className="w-4 h-4" />
+                <span>{lang === 'ar' ? 'طلب عرض سعر لهذه القائمة (BOM)' : 'Request Quote for this BOM'}</span>
+              </button>
+            </div>
+
+            {/* Computed BOM Output Table */}
+            <div className="lg:col-span-7 glass-panel p-8 rounded-2xl space-y-6 bg-slate-900 text-white border border-slate-800">
+              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+                <h4 className="text-lg font-bold text-amber-400">
+                  {lang === 'ar' ? 'جدول الكميات والمكونات المقترحة (BOM)' : 'Generated Bill of Materials (BOM)'}
+                </h4>
+                <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full font-mono">
+                  {bomSystemKw} kW SYSTEM
+                </span>
+              </div>
+
+              <div className="space-y-3 font-mono text-xs">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'ألواح Jinko Solar الشمسية' : 'Jinko Solar Panels'}</span>
+                  <span className="text-amber-400 font-bold">{totalPanelsCount} لوح ({selectedPanelWatt}W)</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'محفرات الطاقة (Inverter)' : 'Hybrid Inverter System'}</span>
+                  <span className="text-amber-400 font-bold">{recommendedInverter}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'سعة بطاريات التخزين (BESS)' : 'Recommended BESS Storage'}</span>
+                  <span className="text-amber-400 font-bold">~{recommendedBatteryKwh} kWh Lithium</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'هياكل التركيب (ألمنيوم)' : 'Aluminum Mounting Rails'}</span>
+                  <span className="text-amber-400 font-bold">{bomSystemKw} kW Structure Kit</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'أسلاك DC (6 مم²)' : 'DC Copper Cables (6mm²)'}</span>
+                  <span className="text-amber-400 font-bold">~{estimatedDcCableMeters} متر</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'موصلات MC4 أصلية' : 'MC4 Connectors Pairs'}</span>
+                  <span className="text-amber-400 font-bold">{mc4PairsCount} زوج</span>
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'حمايات الصواعق وقواطع DC/AC' : 'DC SPDs & Breakers'}</span>
+                  <span className="text-amber-400 font-bold">{dcSpdCount} صندوق حماية ({acBreakerAmps}A AC)</span>
+                </div>
+              </div>
+
+              <div className="text-[11px] text-slate-400 leading-relaxed border-t border-slate-800 pt-4">
+                {lang === 'ar'
+                  ? 'تم حساب هذه القائمة بدقة وفق المعايير الهندسية العالمية. يمكنك إرسال هذه القائمة مباشرة للمهندس مالك حريبات أو م. عز الدين بدارين عبر واتساب للحصول على عرض فني ومالي معتمد.'
+                  : 'Computed according to international engineering standards. Send this BOM directly to Eng. Malek or Eng. Ezzaddin via WhatsApp.'}
+              </div>
             </div>
           </div>
         </main>
@@ -1334,7 +1474,7 @@ export default function App() {
             <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
               <li><button onClick={() => setActiveTab('home')} className="hover:text-amber-600">{lang === 'ar' ? 'الرئيسية' : 'Home'}</button></li>
               <li><button onClick={() => setActiveTab('shop')} className="hover:text-amber-600">{lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}</button></li>
-              <li><button onClick={() => setActiveTab('calculator')} className="hover:text-amber-600">{lang === 'ar' ? 'حاسبة الوفورات' : 'Savings Calculator'}</button></li>
+              <li><button onClick={() => setActiveTab('bom-generator')} className="hover:text-amber-600">{lang === 'ar' ? 'حاسبة المكونات (BOM)' : 'System BOM Calculator'}</button></li>
               <li><button onClick={() => setActiveTab('contact')} className="hover:text-amber-600">{lang === 'ar' ? 'اتصل بنا' : 'Contact'}</button></li>
             </ul>
           </div>
