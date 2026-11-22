@@ -1,0 +1,6 @@
+{
+  "name": "شركة روافد لحلول الطاقة | Rawafid Energy Solutions",
+  "description": "شركة رائدة في حلول الطاقة المتجددة، الطاقة الشمسية، أنظمة تخزين الطاقة، والشبكات الذكية.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

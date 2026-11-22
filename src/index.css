@@ -1,0 +1,22 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'Cairo', 'Plus Jakarta Sans', sans-serif;
+    @apply bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 antialiased selection:bg-amber-500 selection:text-white;
+  }
+}
+
+/* Custom smooth transitions and glass styling with logo colors */
+.glass-panel {
+  @apply bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border border-slate-200/80 dark:border-slate-800/80 shadow-lg shadow-slate-900/5;
+}
+
+.energy-gradient {
+  background: linear-gradient(135deg, #0b2545 0%, #134074 50%, #f59e0b 100%);
+}
+
+.hero-glow {
+  background: radial-gradient(circle at 50% 20%, rgba(245, 158, 11, 0.15) 0%, transparent 60%);
+}
