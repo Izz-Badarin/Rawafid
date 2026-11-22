@@ -38,14 +38,14 @@ import {
   Minus,
   X,
   Award,
-  Check
+  Check,
+  MessageCircle
 } from 'lucide-react';
 
 interface CartItem {
   id: number;
   nameAr: string;
   nameEn: string;
-  price: number;
   quantity: number;
   image: string;
 }
@@ -69,11 +69,14 @@ export default function App() {
   const [quoteForm, setQuoteForm] = useState({ name: '', company: '', email: '', phone: '', details: '' });
   const [quoteSubmitted, setQuoteSubmitted] = useState<boolean>(false);
 
-  // Shop & Cart State
+  // Shop & Cart State (No prices)
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [shopCategory, setShopCategory] = useState<string>('all');
   const [checkoutSubmitted, setCheckoutSubmitted] = useState<boolean>(false);
+
+  // WhatsApp Menu State
+  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState<boolean>(false);
 
   // Project Filter State
   const [projectFilter, setProjectFilter] = useState<'all' | 'solar' | 'bess' | 'smart-grid'>('all');
@@ -109,7 +112,7 @@ export default function App() {
     { name: 'Schneider Electric', desc: 'Switchgear & Protection', logoText: 'SCHNEIDER' }
   ];
 
-  // Comprehensive Shop Products Catalog (including all Deye devices, Jinko sizes 440W to 720W, and expanded accessories)
+  // Products Catalog (NO PRICES)
   const productsData = [
     // --- Deye Inverters & BESS ---
     {
@@ -117,8 +120,7 @@ export default function App() {
       nameAr: 'عاكس ديي هجين أحادي الطور 5 كيلوواط (Deye 5kW)',
       nameEn: 'Deye 5kW Single-Phase Hybrid Inverter (SUN-5K-SG03LP1)',
       category: 'deye',
-      price: 1350,
-      image: '/src/assets/images/hero_solar_farm_1795365670898.jpg',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
       descAr: 'عاكس ديي هجين مع دعم بطاريات 48 فولت ومراقبة واي فاي مدمجة.',
       descEn: 'Deye single-phase hybrid inverter with 48V battery support and built-in WiFi.'
     },
@@ -127,8 +129,7 @@ export default function App() {
       nameAr: 'عاكس ديي هجين أحادي الطور 8 كيلوواط (Deye 8kW)',
       nameEn: 'Deye 8kW Hybrid Inverter (SUN-8K-SG04LP1)',
       category: 'deye',
-      price: 1850,
-      image: '/src/assets/images/hero_solar_farm_1795365670898.jpg',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
       descAr: 'قدرة عالية على التحمل، دعم تفريغ وشحن عالي وتيار مستمر كبير.',
       descEn: 'High capacity hybrid inverter with high charge/discharge current.'
     },
@@ -137,8 +138,7 @@ export default function App() {
       nameAr: 'عاكس ديي هجين ثلاثي الطور 12 كيلوواط (Deye 12kW 3-Phase)',
       nameEn: 'Deye 12kW Three-Phase Hybrid Inverter (SUN-12K-SG04LP3)',
       category: 'deye',
-      price: 2750,
-      image: '/src/assets/images/hero_solar_farm_1795365670898.jpg',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
       descAr: 'انفيرتر ثلاثي الطور للمنازل الكبيرة والمنشآت التجارية مع كفاءة تحويل فائقة.',
       descEn: 'Three-phase hybrid inverter for large residential and commercial sites.'
     },
@@ -147,8 +147,7 @@ export default function App() {
       nameAr: 'عاكس ديي ثلاثي الطور تجاري 50 كيلوواط (Deye 50kW)',
       nameEn: 'Deye 50kW Commercial Three-Phase Inverter',
       category: 'deye',
-      price: 5200,
-      image: '/src/assets/images/hero_solar_farm_1795365670898.jpg',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
       descAr: 'حل صناعي متكامل للمصانع والمشاريع التجارية الكبرى بمواصفات حماية متقدمة.',
       descEn: 'Commercial industrial grade inverter for large factories and utility scale.'
     },
@@ -157,8 +156,7 @@ export default function App() {
       nameAr: 'خزان بطاريات ديي ليثيوم عالية الجهد (Deye BOS-G 61.4kWh)',
       nameEn: 'Deye BOS-G High Voltage Lithium Battery 61.4kWh',
       category: 'deye',
-      price: 12500,
-      image: '/src/assets/images/battery_storage_system_1795365671063.jpg',
+      image: '/src/assets/images/deye_bess_battery_1795377363514.jpg',
       descAr: 'نظام تخزين بطاريات ديي ليثيوم آيوني عالي الجهد للمشاريع الكبرى والتجارية.',
       descEn: 'High-voltage modular lithium battery storage system for commercial applications.'
     },
@@ -169,8 +167,7 @@ export default function App() {
       nameAr: 'لوح شمسي جينكو تايغر نيو 440 واط (سكني)',
       nameEn: 'Jinko Tiger Neo N-Type 440W (Residential)',
       category: 'jinko',
-      price: 145,
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
+      image: '/src/assets/images/jinko_solar_panel_1795377362014.jpg',
       descAr: 'مقاس مثالي للأسطح السكنية بمظهر أنيق وكفاءة عالية في الإضاءة المنخفضة.',
       descEn: 'Compact residential size with elegant black frame and low-light performance.'
     },
@@ -179,8 +176,7 @@ export default function App() {
       nameAr: 'لوح شمسي جينكو تايغر نيو 580 واط (تجاري)',
       nameEn: 'Jinko Tiger Neo N-Type 580W (Commercial)',
       category: 'jinko',
-      price: 190,
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
+      image: '/src/assets/images/jinko_solar_panel_1795377362014.jpg',
       descAr: 'المقاس الأكثر طلباً للمشاريع التجارية والأسطح الصناعية بكفاءة 22.5%.',
       descEn: 'Most popular commercial size delivering 22.5% high efficiency.'
     },
@@ -189,8 +185,7 @@ export default function App() {
       nameAr: 'لوح شمسي جينكو تايغر نيو 620 واط (صناعي عالي القدرة)',
       nameEn: 'Jinko Tiger Neo N-Type 620W (Industrial)',
       category: 'jinko',
-      price: 210,
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
+      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
       descAr: 'قدرة متقدمة 620 واط للمشاريع الصناعية الكبرى مع معامل درجة حرارة ممتاز.',
       descEn: 'Advanced 620W high power industrial module with excellent temperature coefficient.'
     },
@@ -199,8 +194,7 @@ export default function App() {
       nameAr: 'لوح شمسي جينكو تايغر نيو 650 واط (محطات طاقة)',
       nameEn: 'Jinko Tiger Neo N-Type 650W (Utility)',
       category: 'jinko',
-      price: 230,
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
+      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
       descAr: 'ألواح 650 واط عالية الإنتاجية لمشاريع الطاقة الشمسية الكبرى والمزارع الشمسية.',
       descEn: 'High-yield 650W panels designed for utility-scale solar farms.'
     },
@@ -209,8 +203,7 @@ export default function App() {
       nameAr: 'لوح شمسي جينكو تايغر نيو 720 واط ألترا (الجيل الأحدث)',
       nameEn: 'Jinko Tiger Neo 720W Ultra Industrial',
       category: 'jinko',
-      price: 260,
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
+      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
       descAr: 'القدرة الأضخم 720 واط تكنولوجيا ثنائية الوجه (Bifacial) للمحطات العملاقة وتوفير مساحة التركيب.',
       descEn: 'Massive 720W ultra high-power bifacial module for utility-scale giants.'
     },
@@ -221,8 +214,7 @@ export default function App() {
       nameAr: 'هيكل تركيب معدني ألمنيوم مقاوم للصدأ (Mounting Rails Kit per kW)',
       nameEn: 'Aluminum Solar Mounting Structure Kit (Per kW)',
       category: 'accessories',
-      price: 45,
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'قواعد ومشابك تثبيت ألمنيوم مقاومة للتآكل والأحمال الريحية الشديدة.',
       descEn: 'Corrosion-resistant aluminum mounting rails and clamps for secure roof fixing.'
     },
@@ -231,8 +223,7 @@ export default function App() {
       nameAr: 'قواعد تثبيت مائلة للألواح على الأسطح المستوية (Triangle Brackets)',
       nameEn: 'Adjustable Flat Roof Triangle Mounting Brackets',
       category: 'accessories',
-      price: 65,
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'قواعد مثلثية ألمنيوم لضبط زاوية ميل الألواح المثالية على الأسطح الخرسانية المستوية.',
       descEn: 'Adjustable aluminum triangle brackets for optimal tilt angle on flat concrete roofs.'
     },
@@ -241,8 +232,7 @@ export default function App() {
       nameAr: 'سلاك طاقة شمسية DC نحاس خالص مقاس 4 مم² (لفة 100 متر)',
       nameEn: 'Solar DC Copper Cable 4mm² UV Resistant (100m Roll)',
       category: 'accessories',
-      price: 85,
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'أسلاك توصيل معزولة مزدوجة مخصصة لربط الألواح الشمسية.',
       descEn: 'Dual insulated pure copper DC cable for solar panel string connection.'
     },
@@ -251,8 +241,7 @@ export default function App() {
       nameAr: 'أسلاك طاقة شمسية DC نحاس خالص مقاس 6 مم² (لفة 100 متر)',
       nameEn: 'Solar DC Copper Cable 6mm² UV Resistant (100m Roll)',
       category: 'accessories',
-      price: 110,
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'كابلات نحاسية معزولة مزدوجة مقاس 6 مم² مقاومة لأشعة الشمس المباشرة.',
       descEn: 'Heavy duty 6mm² copper cables resistant to UV rays and extreme temperatures.'
     },
@@ -261,8 +250,7 @@ export default function App() {
       nameAr: 'موصلات طاقة شمسية MC4 أصلية (زوج ذكر وأنثى - 10 أزواج)',
       nameEn: 'Original MC4 Solar Connectors (10 Pairs Pack)',
       category: 'accessories',
-      price: 30,
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'موصلات MC4 أصلية مقاومة للماء والغبار بمعيار IP68 لتوصيل آمن بدون فقد في الطاقة.',
       descEn: 'IP68 waterproof original MC4 connectors for secure low-loss PV connections.'
     },
@@ -271,8 +259,7 @@ export default function App() {
       nameAr: 'جهاز حماية من الارتفاع المفاجئ والصواعق DC SPD 1000V',
       nameEn: 'DC Surge Protection Device SPD 1000V (2-Pole)',
       category: 'accessories',
-      price: 45,
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'حماية متقدمة لمنظومة الألواح والانفيرتر ضد الصواعق وارتفاع الجهد المفاجئ.',
       descEn: 'Advanced DC surge protection device against lightning and voltage spikes.'
     },
@@ -281,8 +268,7 @@ export default function App() {
       nameAr: 'قاطع حماية تيار مستمر DC Breaker 1000V 32A/63A',
       nameEn: 'DC Circuit Breaker 1000V (32A - 63A)',
       category: 'accessories',
-      price: 35,
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'قاطع أمان مخصص لدوائر الألواح الشمسية بجهد عالي وتيار مستمر.',
       descEn: 'High voltage DC safety circuit breaker for solar strings.'
     },
@@ -291,8 +277,7 @@ export default function App() {
       nameAr: 'قواطع حماية تيار متناوب AC MCCB / MCB 3-Phase',
       nameEn: 'AC Circuit Breaker 3-Phase MCCB / MCB',
       category: 'accessories',
-      price: 60,
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'قواطع رئيسية ثلاثية الطور لحماية مخرج الانفيرتر واللوحة الرئيسية.',
       descEn: '3-phase AC main circuit breakers for inverter output and main panel protection.'
     },
@@ -301,8 +286,7 @@ export default function App() {
       nameAr: 'أسلاك تأريض نحاسية مرنة للتأريض 16 مم² (لفة 50 متر)',
       nameEn: 'Flexible Grounding Earth Copper Wire 16mm² (50m)',
       category: 'accessories',
-      price: 95,
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
       descAr: 'سلك تأريض أخضر/أصفر معتمد لحماية الهياكل والألواح والانفيرتر من الصواعق وتفريغ الشحنات.',
       descEn: 'Certified green/yellow grounding earth wire for structural safety and lightning protection.'
     }
@@ -328,7 +312,6 @@ export default function App() {
         id: product.id,
         nameAr: product.nameAr,
         nameEn: product.nameEn,
-        price: product.price,
         quantity: 1,
         image: product.image
       }];
@@ -346,7 +329,6 @@ export default function App() {
     }).filter(Boolean) as CartItem[]);
   };
 
-  const cartTotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
   // Handle AI Consultation
@@ -436,7 +418,7 @@ export default function App() {
     : projectsData.filter(p => p.category === projectFilter);
 
   return (
-    <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-300`}>
+    <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-300 relative`}>
       
       {/* Top Bar Contract (Strict 3 zones) */}
       <header className="sticky top-0 z-50 glass-panel border-b border-slate-200/80 dark:border-slate-800/80 px-6 py-4 flex items-center justify-between gap-8">
@@ -468,7 +450,7 @@ export default function App() {
             {lang === 'ar' ? 'حلولنا وخدماتنا' : 'Services'}
           </button>
           <button onClick={() => setActiveTab('shop')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'shop' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
-            {lang === 'ar' ? 'متجر جينكو 440-720W' : 'Jinko 440-720W & Shop'}
+            {lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}
           </button>
           <button onClick={() => setActiveTab('calculator')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'حاسبة الوفورات' : 'Savings Calculator'}
@@ -486,11 +468,11 @@ export default function App() {
 
         {/* Zone 3: Primary Action & Toggles */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Cart Button */}
+          {/* Cart / Inquiry List Button */}
           <button
             onClick={() => setIsCartOpen(true)}
             className="relative p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors"
-            title="Shopping Cart"
+            title="Inquiry List"
           >
             <ShoppingCart className="w-4 h-4" />
             {totalItemsCount > 0 && (
@@ -546,19 +528,19 @@ export default function App() {
             <div className="relative z-10 max-w-5xl mx-auto text-center space-y-6">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{lang === 'ar' ? 'متوفر الآن: ألواح Jinko (440W - 720W) وأجهزة Deye' : 'Now Available: Jinko Panels (440W-720W) & Deye Inverters'}</span>
+                <span>{lang === 'ar' ? 'الوكيل المعتمد لألواح Jinko (440W - 720W) وأجهزة Deye' : 'Authorized Jinko & Deye Distributor'}</span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight max-w-4xl mx-auto">
                 {lang === 'ar'
-                  ? 'ألواح جينكو (440، 580، 620، 650، 720 واط) واكسسوارات التركيب'
-                  : 'Jinko Panels (440W to 720W) & Certified Mounting Accessories'}
+                  ? 'ألواح جينكو (440، 580، 620، 650، 720 واط) وأجهزة Deye'
+                  : 'Jinko Panels (440W to 720W) & Deye Systems Catalog'}
               </h1>
 
               <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
                 {lang === 'ar'
-                  ? 'التشكيلة الأوسع من ألواح Jinko الشمسية بكافة المقاسات، محولات Deye، القواطع، الأسلاك، وهياكل التثبيت المعتمدة.'
-                  : 'The widest range of Jinko solar modules in all wattages, Deye inverters, circuit breakers, cables, and mounting structures.'}
+                  ? 'استعرض أحدث منتجات وأجهزة Deye وألواح Jinko الشمسية بكل المقاسات واكسسوارات التركيب دون أسعار، مع إمكانية طلب عرض سعر مخصص.'
+                  : 'Explore official Deye devices, Jinko panels in all sizes, and mounting accessories without prices. Request a custom quote.'}
               </p>
 
               <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
@@ -567,7 +549,7 @@ export default function App() {
                   className="px-6 py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all flex items-center gap-2"
                 >
                   <ShoppingBag className="w-4 h-4" />
-                  <span>{lang === 'ar' ? 'تصفح المتجر وألواح Jinko 720W' : 'Browse Jinko 720W & Shop'}</span>
+                  <span>{lang === 'ar' ? 'تصفح معرض المنتجات والأنظمة' : 'Browse Products Catalog'}</span>
                 </button>
 
                 <button
@@ -635,8 +617,8 @@ export default function App() {
               </h3>
               <p className="text-slate-600 dark:text-slate-400">
                 {lang === 'ar'
-                  ? 'تواصل مباشرة مع كبار المهندسين والاستشاريين لمناقشة متطلبات مشروعك وتوريد ألواح جينكو (440W-720W).'
-                  : 'Get in direct touch with our senior engineers and consultants to discuss Jinko panels (440W-720W) and accessories.'}
+                  ? 'تواصل مباشرة مع كبار المهندسين والاستشاريين لمناقشة متطلبات مشروعك وتوريد ألواح جينكو وأجهزة Deye.'
+                  : 'Get in direct touch with our senior engineers and consultants to discuss Jinko panels and Deye systems.'}
               </p>
             </div>
 
@@ -656,13 +638,22 @@ export default function App() {
                   <Phone className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                   <span>0594345464</span>
                 </div>
-                <div className="pt-4">
+                <div className="pt-4 flex items-center gap-3">
                   <a
                     href="tel:0594345464"
-                    className="inline-flex items-center justify-center gap-2 w-full py-3 text-sm font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all"
+                    className="flex-1 py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
                   >
                     <Phone className="w-4 h-4" />
-                    <span>{lang === 'ar' ? 'اتصال مباشر' : 'Direct Call'}</span>
+                    <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
+                  </a>
+                  <a
+                    href="https://wa.me/970594345464?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>واتساب</span>
                   </a>
                 </div>
               </div>
@@ -682,13 +673,22 @@ export default function App() {
                   <Phone className="w-5 h-5 text-amber-600 dark:text-amber-400" />
                   <span>0599973304</span>
                 </div>
-                <div className="pt-4">
+                <div className="pt-4 flex items-center gap-3">
                   <a
                     href="tel:0599973304"
-                    className="inline-flex items-center justify-center gap-2 w-full py-3 text-sm font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all"
+                    className="flex-1 py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
                   >
                     <Phone className="w-4 h-4" />
-                    <span>{lang === 'ar' ? 'اتصال مباشر' : 'Direct Call'}</span>
+                    <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
+                  </a>
+                  <a
+                    href="https://wa.me/970599973304?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-1 py-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>واتساب</span>
                   </a>
                 </div>
               </div>
@@ -733,38 +733,38 @@ export default function App() {
                   <BatteryCharging className="w-6 h-6" />
                 </div>
                 <div>
-                  <h4 className="text-xl font-bold">{lang === 'ar' ? 'اكسسوارات التركيب والقواطع والأسلاك' : 'Mounting Accessories, Breakers & Cables'}</h4>
-                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">Certified Safety & Hardware</p>
+                  <h4 className="text-xl font-bold">{lang === 'ar' ? 'أجهزة Deye الهجينة والبطاريات' : 'Deye Hybrid Inverters & BESS'}</h4>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">Authorized Deye Distribution</p>
                 </div>
               </div>
               <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
                 {lang === 'ar'
-                  ? 'تشكيلة متكاملة من هياكل الألمنيوم، الأسلاك النحاسية المعتمدة مقاس 4 و 6 مم²، قواطع DC/AC، موصلات MC4، وحمايات الصواعق.'
-                  : 'Complete hardware of aluminum structures, certified 4 & 6mm² copper cables, DC/AC breakers, MC4, and surge protectors.'}
+                  ? 'محولات ديي الهجينة من 5 كيلوواط وحتى 50 كيلوواط ثلاثية الطور وخزانات بطاريات الليثيوم عالية الجهد.'
+                  : 'Deye hybrid inverters from 5kW to 50kW three-phase and high voltage lithium BESS storage units.'}
               </p>
             </div>
           </div>
         </main>
       )}
 
-      {/* E-Shop & Jinko Tab */}
+      {/* Products Catalog Tab (NO PRICES) */}
       {activeTab === 'shop' && (
         <main className="py-16 px-6 max-w-7xl mx-auto space-y-12">
           <div className="text-center max-w-3xl mx-auto space-y-4">
             <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-              {lang === 'ar' ? 'متجر ألواح Jinko (440W-720W) والاكسسوارات' : 'Jinko Panels (440W-720W) & Accessories E-Shop'}
+              {lang === 'ar' ? 'معرض المنتجات والأنظمة الرسمية' : 'Official Products & Systems Catalog'}
             </h2>
             <h3 className="text-3xl md:text-5xl font-extrabold tracking-tight">
-              {lang === 'ar' ? 'تسوق ألواح جينكو (440, 580, 620, 650, 720 واط)، القواطع، والأسلاك' : 'Shop Jinko Panels (440W to 720W), Breakers & Cables'}
+              {lang === 'ar' ? 'استعرض أجهزة Deye، ألواح Jinko، واكسسوارات الطاقة' : 'Explore Deye Devices, Jinko Panels & Accessories'}
             </h3>
             <p className="text-slate-600 dark:text-slate-400">
               {lang === 'ar'
-                ? 'اطلب مباشرة ألواح جينكو بكل المقاسات، محولات Deye، هياكل التركيب، الأسلاك، والقواطع مع الإشراف المباشر من م. مالك حريبات وم. عز الدين بدارين.'
-                : 'Order Jinko panels in all sizes, Deye inverters, mounting structures, cables, and breakers with supervision from Eng. Malek and Eng. Ezzaddin.'}
+                ? 'منتجات أصلية معتمدة مع صور رسمية من الشركات المصنعة. أضف المنتجات لقائمة الاستفسار واطلب عرض سعر مخصص من المهندس مالك حريبات والمهندس عز الدين بدارين.'
+                : 'Official certified products with manufacturer imagery. Add items to your inquiry list and request a custom quote from Eng. Malek and Eng. Ezzaddin.'}
             </p>
           </div>
 
-          {/* Shop Categories Filter */}
+          {/* Catalog Categories Filter */}
           <div className="flex flex-wrap items-center justify-center gap-2">
             <button
               onClick={() => setShopCategory('all')}
@@ -776,7 +776,7 @@ export default function App() {
               onClick={() => setShopCategory('jinko')}
               className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors ${shopCategory === 'jinko' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
             >
-              {lang === 'ar' ? 'ألواح Jinko (كل المقاسات حتى 720W)' : 'Jinko Panels (All Sizes up to 720W)'}
+              {lang === 'ar' ? 'ألواح Jinko (كل المقاسات 440-720W)' : 'Jinko Panels (440W-720W)'}
             </button>
             <button
               onClick={() => setShopCategory('deye')}
@@ -795,18 +795,15 @@ export default function App() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {filteredProducts.map((product) => (
               <div key={product.id} className="glass-panel rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col group">
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-56 overflow-hidden bg-slate-900">
                   <img
                     src={product.image}
                     alt={lang === 'ar' ? product.nameAr : product.nameEn}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     referrerPolicy="no-referrer"
                   />
-                  <div className="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-md text-amber-400 font-mono text-sm font-bold px-3 py-1 rounded-lg border border-slate-800">
-                    ${product.price}
-                  </div>
-                  <div className="absolute top-4 left-4 bg-amber-500 text-slate-950 font-bold text-[10px] px-2 py-0.5 rounded">
-                    {product.category.toUpperCase()}
+                  <div className="absolute top-4 left-4 bg-amber-500 text-slate-950 font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider">
+                    {product.category}
                   </div>
                 </div>
                 <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
@@ -818,10 +815,10 @@ export default function App() {
                   </div>
                   <button
                     onClick={() => addToCart(product)}
-                    className="w-full py-2.5 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                    className="w-full py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
                   >
                     <ShoppingBag className="w-4 h-4" />
-                    <span>{lang === 'ar' ? 'إضافة إلى سلة الطلبات' : 'Add to Cart'}</span>
+                    <span>{lang === 'ar' ? 'إضافة إلى قائمة الاستفسار وطلب السعر' : 'Add to Inquiry List'}</span>
                   </button>
                 </div>
               </div>
@@ -945,13 +942,13 @@ export default function App() {
             <form onSubmit={handleAIConsult} className="space-y-4">
               <div className="space-y-2">
                 <label className="text-sm font-semibold">
-                  {lang === 'ar' ? 'اكتب استفسارك الهندسي (مثل مقارنة ألواح جينكو 620W و 720W واكسسوارات التركيب):' : 'Enter your engineering inquiry:'}
+                  {lang === 'ar' ? 'اكتب استفسارك الهندسي (عن أجهزة Deye وألواح Jinko):' : 'Enter your engineering inquiry:'}
                 </label>
                 <textarea
                   rows={4}
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
-                  placeholder={lang === 'ar' ? 'مثال: متى أستخدم ألواح جينكو 720 واط مقارنة بـ 580 واط لمشروع تجاري؟' : 'Example: When should I use Jinko 720W panels compared to 580W for a commercial project?'}
+                  placeholder={lang === 'ar' ? 'مثال: ما هو عدد ألواح جينكو 720 واط المطلوبة لمشروع قدرته 100 كيلوواط مع انفيرتر Deye؟' : 'Example: How many Jinko 720W panels are needed for a 100kW project with Deye inverter?'}
                   className="w-full p-4 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
                 />
               </div>
@@ -1056,9 +1053,14 @@ export default function App() {
                 <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">{lang === 'ar' ? 'مدير مشاريع الطاقة المتجددة' : 'Project Director'}</p>
               </div>
               <div className="text-lg font-mono font-bold" dir="ltr">0594345464</div>
-              <a href="tel:0594345464" className="inline-flex items-center justify-center gap-2 w-full py-2.5 text-xs font-bold text-white energy-gradient rounded-xl">
-                <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال مباشر' : 'Call Now'}</span>
-              </a>
+              <div className="flex items-center gap-2">
+                <a href="tel:0594345464" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl">
+                  <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
+                </a>
+                <a href="https://wa.me/970594345464?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية" target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl">
+                  <MessageCircle className="w-4 h-4" /> <span>واتساب</span>
+                </a>
+              </div>
             </div>
 
             <div className="glass-panel p-6 rounded-2xl space-y-4 text-center">
@@ -1070,9 +1072,14 @@ export default function App() {
                 <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">{lang === 'ar' ? 'استشاري الأنظمة الكهروضوئية والشبكات الذكية' : 'Solar & Smart Grid Consultant'}</p>
               </div>
               <div className="text-lg font-mono font-bold" dir="ltr">0599973304</div>
-              <a href="tel:0599973304" className="inline-flex items-center justify-center gap-2 w-full py-2.5 text-xs font-bold text-white energy-gradient rounded-xl">
-                <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال مباشر' : 'Call Now'}</span>
-              </a>
+              <div className="flex items-center gap-2">
+                <a href="tel:0599973304" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl">
+                  <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
+                </a>
+                <a href="https://wa.me/970599973304?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية" target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl">
+                  <MessageCircle className="w-4 h-4" /> <span>واتساب</span>
+                </a>
+              </div>
             </div>
           </div>
 
@@ -1173,14 +1180,14 @@ export default function App() {
         </main>
       )}
 
-      {/* Shopping Cart Modal */}
+      {/* Inquiry List Modal (No Prices) */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-end p-4">
           <div className="w-full max-w-md h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-in slide-in-from-right duration-300">
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-2 font-bold text-lg">
                 <ShoppingCart className="w-5 h-5 text-amber-500" />
-                <span>{lang === 'ar' ? 'سلة طلبات الأنظمة' : 'Systems Cart'}</span>
+                <span>{lang === 'ar' ? 'قائمة الاستفسار وطلب السعر' : 'Systems Inquiry List'}</span>
               </div>
               <button onClick={() => setIsCartOpen(false)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
                 <X className="w-5 h-5" />
@@ -1193,23 +1200,23 @@ export default function App() {
                   <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
-                  <h4 className="text-xl font-bold">{lang === 'ar' ? 'تم إرسال طلب النظام بنجاح!' : 'Order Placed Successfully!'}</h4>
+                  <h4 className="text-xl font-bold">{lang === 'ar' ? 'تم إرسال قائمة الاستفسار بنجاح!' : 'Inquiry List Submitted!'}</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
                     {lang === 'ar'
-                      ? 'سيتواصل معك م. مالك حريبات أو م. عز الدين بدارين لتأكيد طلب ألواح جينكو (620W, 650W, 720W) والاكسسوارات.'
-                      : 'Eng. Malek or Eng. Ezzaddin will contact you regarding your Jinko panels and accessories order.'}
+                      ? 'سيتواصل معك م. مالك حريبات أو م. عز الدين بدارين لتزويدك بعرض السعر الفني المخصص للأنظمة المحددة.'
+                      : 'Eng. Malek or Eng. Ezzaddin will contact you with a customized technical quotation.'}
                   </p>
                   <button
                     onClick={() => { setCart([]); setCheckoutSubmitted(false); setIsCartOpen(false); }}
                     className="px-5 py-2 text-xs font-bold text-white energy-gradient rounded-xl"
                   >
-                    {lang === 'ar' ? 'إغلاق السلة' : 'Close Cart'}
+                    {lang === 'ar' ? 'إغلاق القائمة' : 'Close List'}
                   </button>
                 </div>
               ) : cart.length === 0 ? (
                 <div className="text-center py-20 space-y-3 text-slate-400">
                   <ShoppingBag className="w-12 h-12 mx-auto opacity-40" />
-                  <p className="text-sm">{lang === 'ar' ? 'سلة الطلبات فارغة' : 'Your cart is empty'}</p>
+                  <p className="text-sm">{lang === 'ar' ? 'قائمة الاستفسار فارغة' : 'Your inquiry list is empty'}</p>
                 </div>
               ) : (
                 <>
@@ -1218,7 +1225,6 @@ export default function App() {
                       <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
                         <div className="space-y-1">
                           <h5 className="text-xs font-bold">{lang === 'ar' ? item.nameAr : item.nameEn}</h5>
-                          <div className="text-xs font-mono text-amber-600 dark:text-amber-400">${item.price}</div>
                         </div>
                         <div className="flex items-center gap-2">
                           <button onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300">
@@ -1234,16 +1240,11 @@ export default function App() {
                   </div>
 
                   <div className="border-t border-slate-200 dark:border-slate-800 pt-4 space-y-4">
-                    <div className="flex items-center justify-between text-base font-bold">
-                      <span>{lang === 'ar' ? 'المجموع الإجمالي:' : 'Total Amount:'}</span>
-                      <span className="font-mono text-amber-600 dark:text-amber-400">${cartTotal.toLocaleString()}</span>
-                    </div>
-
                     <button
                       onClick={() => setCheckoutSubmitted(true)}
                       className="w-full py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all"
                     >
-                      {lang === 'ar' ? 'تأكيد إرسال الطلب للمهندسين' : 'Confirm & Send Order to Engineers'}
+                      {lang === 'ar' ? 'إرسال القائمة للمهندسين (طلب عرض سعر)' : 'Send List to Engineers (Request Quote)'}
                     </button>
                   </div>
                 </>
@@ -1252,6 +1253,59 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Floating WhatsApp Action Button */}
+      <div className="fixed bottom-6 right-6 z-50">
+        {isWhatsAppOpen && (
+          <div className="absolute bottom-16 right-0 w-72 glass-panel rounded-2xl p-4 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+              <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                {lang === 'ar' ? 'تواصل مع فريق الهندسة عبر واتساب' : 'Chat with Engineers via WhatsApp'}
+              </span>
+              <button onClick={() => setIsWhatsAppOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <a
+                href="https://wa.me/970594345464?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية%20وأجهزة%20Deye"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
+              >
+                <div className="font-bold text-xs text-emerald-800 dark:text-emerald-300">
+                  {lang === 'ar' ? 'م. مالك حريبات' : 'Eng. Malek Hraibat'}
+                </div>
+                <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400" dir="ltr">0594345464</div>
+              </a>
+
+              <a
+                href="https://wa.me/970599973304?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية%20وأجهزة%20Deye"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
+              >
+                <div className="font-bold text-xs text-emerald-800 dark:text-emerald-300">
+                  {lang === 'ar' ? 'م. عز الدين بدارين' : 'Eng. Ezzaddin Badarin'}
+                </div>
+                <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400" dir="ltr">0599973304</div>
+              </a>
+            </div>
+          </div>
+        )}
+
+        <button
+          onClick={() => setIsWhatsAppOpen(!isWhatsAppOpen)}
+          className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl flex items-center justify-center transition-all hover:scale-105 group relative"
+          title="Chat on WhatsApp"
+        >
+          <MessageCircle className="w-7 h-7" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-[10px] font-bold text-white flex items-center justify-center animate-pulse">
+            2
+          </span>
+        </button>
+      </div>
 
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-12 px-6 mt-20">
@@ -1279,7 +1333,7 @@ export default function App() {
             <h5 className="text-sm font-bold">{lang === 'ar' ? 'روابط سريعة' : 'Quick Links'}</h5>
             <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
               <li><button onClick={() => setActiveTab('home')} className="hover:text-amber-600">{lang === 'ar' ? 'الرئيسية' : 'Home'}</button></li>
-              <li><button onClick={() => setActiveTab('shop')} className="hover:text-amber-600">{lang === 'ar' ? 'متجر جينكو والأنظمة' : 'Jinko & E-Shop'}</button></li>
+              <li><button onClick={() => setActiveTab('shop')} className="hover:text-amber-600">{lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}</button></li>
               <li><button onClick={() => setActiveTab('calculator')} className="hover:text-amber-600">{lang === 'ar' ? 'حاسبة الوفورات' : 'Savings Calculator'}</button></li>
               <li><button onClick={() => setActiveTab('contact')} className="hover:text-amber-600">{lang === 'ar' ? 'اتصل بنا' : 'Contact'}</button></li>
             </ul>
