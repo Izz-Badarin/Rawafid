@@ -79,7 +79,7 @@ interface CustomItem {
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'calculator' | 'bom-generator' | 'shop' | 'ai-consultant' | 'projects' | 'contact' | 'admin' | 'quotation-builder'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'calculator' | 'bom-generator' | 'shop' | 'ai-consultant' | 'projects' | 'contact' | 'admin' | 'quotation-builder' | 'special-offers'>('home');
 
   // Admin Auth State
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
@@ -257,6 +257,123 @@ export default function App() {
   const [quoteForm, setQuoteForm] = useState({ name: '', company: '', email: '', phone: '', details: '', surveyDate: '' });
   const [quoteSubmitted, setQuoteSubmitted] = useState<boolean>(false);
   const [inquiriesList, setInquiriesList] = useState<any[]>([]);
+
+  // Special Solar System Offers State & Handlers
+  interface SpecialOffer {
+    id: number;
+    titleAr: string;
+    titleEn: string;
+    systemKw: number;
+    inverter: string;
+    batteries: string;
+    panels: string;
+    price: number;
+    currency: string;
+    descAr: string;
+    descEn: string;
+  }
+
+  const [specialOffers, setSpecialOffers] = useState<SpecialOffer[]>([
+    {
+      id: 1,
+      titleAr: 'عروض نظام تجاري هجين 50 كيلوواط (Deye + Jinko)',
+      titleEn: '50kW Commercial Hybrid System Offer',
+      systemKw: 50,
+      inverter: 'Deye 50kW 3-Phase Hybrid Inverter',
+      batteries: 'Deye BOS-G High Voltage Lithium Battery BESS',
+      panels: '70x Jinko Tiger Neo 720W Monofacial PV Modules',
+      price: 24500,
+      currency: 'USD',
+      descAr: 'عرض خاص ومميز للمصانع والمنشآت التجارية. يشمل التركيب، الفحص، التشغيل، وبرمجة نظام المراقبة الذكي عبر الواي فاي.',
+      descEn: 'Special commercial package including installation, testing, and smart Wi-Fi monitoring.',
+    },
+    {
+      id: 2,
+      titleAr: 'عرض نظام منزلي متكامل 10 كيلوواط',
+      titleEn: '10kW Residential Complete System Offer',
+      systemKw: 10,
+      inverter: 'Deye 10kW Single Phase Hybrid Inverter',
+      batteries: 'Deye 10kWh Wall-Mounted Lithium Battery',
+      panels: '16x Jinko 620W High Efficiency Panels',
+      price: 6800,
+      currency: 'USD',
+      descAr: 'النظام المثالي للمنازل، يضمن تغطية كاملة وتخزين ليلي آمن وكفالة معتمدة.',
+      descEn: 'Ideal home solar system with reliable night backup and full warranty.',
+    }
+  ]);
+
+  const [newOfferTitleAr, setNewOfferTitleAr] = useState('');
+  const [newOfferTitleEn, setNewOfferTitleEn] = useState('');
+  const [newOfferKw, setNewOfferKw] = useState(30);
+  const [newOfferInverter, setNewOfferInverter] = useState('Deye 30kW Hybrid');
+  const [newOfferBatteries, setNewOfferBatteries] = useState('Deye Lithium BESS');
+  const [newOfferPanels, setNewOfferPanels] = useState('42x Jinko 720W Panels');
+  const [newOfferPrice, setNewOfferPrice] = useState(15000);
+  const [newOfferCurrency, setNewOfferCurrency] = useState('USD');
+  const [newOfferDescAr, setNewOfferDescAr] = useState('');
+  const [newOfferDescEn, setNewOfferDescEn] = useState('');
+  const [editingOfferId, setEditingOfferId] = useState<number | null>(null);
+
+  const handleSaveOffer = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newOfferTitleAr.trim()) return;
+
+    if (editingOfferId !== null) {
+      setSpecialOffers(prev => prev.map(o => o.id === editingOfferId ? {
+        ...o,
+        titleAr: newOfferTitleAr,
+        titleEn: newOfferTitleEn || newOfferTitleAr,
+        systemKw: newOfferKw,
+        inverter: newOfferInverter,
+        batteries: newOfferBatteries,
+        panels: newOfferPanels,
+        price: newOfferPrice,
+        currency: newOfferCurrency,
+        descAr: newOfferDescAr,
+        descEn: newOfferDescEn || newOfferDescAr
+      } : o));
+      setEditingOfferId(null);
+    } else {
+      setSpecialOffers(prev => [
+        ...prev,
+        {
+          id: Date.now(),
+          titleAr: newOfferTitleAr,
+          titleEn: newOfferTitleEn || newOfferTitleAr,
+          systemKw: newOfferKw,
+          inverter: newOfferInverter,
+          batteries: newOfferBatteries,
+          panels: newOfferPanels,
+          price: newOfferPrice,
+          currency: newOfferCurrency,
+          descAr: newOfferDescAr,
+          descEn: newOfferDescEn || newOfferDescAr
+        }
+      ]);
+    }
+    setNewOfferTitleAr('');
+    setNewOfferTitleEn('');
+    setNewOfferDescAr('');
+    setNewOfferDescEn('');
+  };
+
+  const handleEditOffer = (offer: SpecialOffer) => {
+    setEditingOfferId(offer.id);
+    setNewOfferTitleAr(offer.titleAr);
+    setNewOfferTitleEn(offer.titleEn);
+    setNewOfferKw(offer.systemKw);
+    setNewOfferInverter(offer.inverter);
+    setNewOfferBatteries(offer.batteries);
+    setNewOfferPanels(offer.panels);
+    setNewOfferPrice(offer.price);
+    setNewOfferCurrency(offer.currency);
+    setNewOfferDescAr(offer.descAr);
+    setNewOfferDescEn(offer.descEn);
+  };
+
+  const handleDeleteOffer = (id: number) => {
+    setSpecialOffers(prev => prev.filter(o => o.id !== id));
+  };
 
   // Shop & Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -639,10 +756,16 @@ export default function App() {
           <button onClick={() => setActiveTab('home')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'home' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'الرئيسية' : 'Home'}
           </button>
-          <button onClick={() => setActiveTab('quotation-builder')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap flex items-center gap-1 ${activeTab === 'quotation-builder' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
-            <FileText className="w-4 h-4 text-amber-500" />
-            <span>{lang === 'ar' ? 'منشئ عروض الأسعار (PDF)' : 'Quotation Builder'}</span>
+          <button onClick={() => setActiveTab('special-offers')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap flex items-center gap-1 ${activeTab === 'special-offers' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
+            <Sparkles className="w-4 h-4 text-amber-500" />
+            <span>{lang === 'ar' ? 'عروض الأنظمة الخاصة' : 'Special Offers'}</span>
           </button>
+          {isAdminLoggedIn && (
+            <button onClick={() => setActiveTab('quotation-builder')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap flex items-center gap-1 ${activeTab === 'quotation-builder' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
+              <FileText className="w-4 h-4 text-amber-500" />
+              <span>{lang === 'ar' ? 'منشئ عروض الأسعار (PDF)' : 'Quotation Builder'}</span>
+            </button>
+          )}
           <button onClick={() => setActiveTab('shop')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'shop' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}
           </button>
@@ -729,19 +852,19 @@ export default function App() {
 
             <form onSubmit={handleAdminLogin} className="space-y-4">
               <div className="space-y-1">
-                <label className="text-xs font-semibold">{lang === 'ar' ? 'اسم المستخدم (malek أو ezzaddin أو admin)' : 'Username'}</label>
+                <label className="text-xs font-semibold">{lang === 'ar' ? 'اسم المستخدم' : 'Username'}</label>
                 <input
                   required
                   type="text"
                   value={adminUsername}
                   onChange={(e) => setAdminUsername(e.target.value)}
-                  placeholder="malek / ezzaddin"
+                  placeholder=""
                   className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                 />
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold">{lang === 'ar' ? 'كلمة المرور (الافتراضية: rawafid2026)' : 'Password (default: rawafid2026)'}</label>
+                <label className="text-xs font-semibold">{lang === 'ar' ? 'كلمة المرور' : 'Password'}</label>
                 <input
                   required
                   type="password"
@@ -978,8 +1101,8 @@ export default function App() {
         </main>
       )}
 
-      {/* Quotation Builder & Printable Receipt Page */}
-      {activeTab === 'quotation-builder' && (
+      {/* Quotation Builder & Printable Receipt Page (Admin Only) */}
+      {isAdminLoggedIn && activeTab === 'quotation-builder' && (
         <main className="py-12 px-6 max-w-6xl mx-auto space-y-12">
           <div className="text-center max-w-3xl mx-auto space-y-3 print:hidden">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold">
@@ -1536,6 +1659,236 @@ export default function App() {
 
               </div>
             </div>
+          </div>
+        </main>
+      )}
+
+      {/* Special Solar System Offers Page */}
+      {activeTab === 'special-offers' && (
+        <main className="py-16 px-6 max-w-7xl mx-auto space-y-12">
+          <div className="text-center max-w-3xl mx-auto space-y-4">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+              <Sparkles className="w-4 h-4" />
+              <span>{lang === 'ar' ? 'عروض الأنظمة والطاقة الحصرية' : 'Exclusive Solar System Offers'}</span>
+            </div>
+            <h2 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+              {lang === 'ar' ? 'باقات وعروض أنظمة الطاقة الشمسية المعتمدة' : 'Certified Solar Package Offers'}
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
+              {lang === 'ar'
+                ? 'استعرض عروضنا الهندسية المخصصة للمنازل والمنشآت التجارية والصناعية، مع كفالات معتمدة ومواصفات دقيقة.'
+                : 'Browse our specialized engineering packages for residential, commercial and industrial sectors.'}
+            </p>
+          </div>
+
+          {/* Admin Management Form for Special Offers */}
+          {isAdminLoggedIn && (
+            <div className="glass-panel p-8 rounded-3xl border-2 border-amber-500/30 space-y-6">
+              <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+                <h3 className="text-lg font-bold flex items-center gap-2 text-amber-600">
+                  <Settings className="w-5 h-5" />
+                  <span>{editingOfferId !== null ? (lang === 'ar' ? 'تعديل عرض نظام طاقة' : 'Edit Solar Offer') : (lang === 'ar' ? 'إضافة عرض نظام طاقة جديد' : 'Add New Solar Offer')}</span>
+                </h3>
+                {editingOfferId !== null && (
+                  <button
+                    onClick={() => { setEditingOfferId(null); setNewOfferTitleAr(''); setNewOfferTitleEn(''); setNewOfferDescAr(''); }}
+                    className="px-3 py-1 text-xs font-semibold rounded-lg bg-slate-200 dark:bg-slate-800"
+                  >
+                    {lang === 'ar' ? 'إلغاء التعديل' : 'Cancel Edit'}
+                  </button>
+                )}
+              </div>
+
+              <form onSubmit={handleSaveOffer} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-xs">
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'عنوان العرض (عربي):' : 'Offer Title (AR):'}</label>
+                  <input
+                    required
+                    type="text"
+                    value={newOfferTitleAr}
+                    onChange={(e) => setNewOfferTitleAr(e.target.value)}
+                    placeholder="مثال: عرض نظام 30 كيلوواط"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'عنوان العرض (إنجليزي):' : 'Offer Title (EN):'}</label>
+                  <input
+                    type="text"
+                    value={newOfferTitleEn}
+                    onChange={(e) => setNewOfferTitleEn(e.target.value)}
+                    placeholder="30kW Solar System Package"
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'قدرة النظام (كيلوواط):' : 'System Capacity (kW):'}</label>
+                  <input
+                    type="number"
+                    value={newOfferKw}
+                    onChange={(e) => setNewOfferKw(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'جهاز الانفيرتر:' : 'Inverter Spec:'}</label>
+                  <input
+                    type="text"
+                    value={newOfferInverter}
+                    onChange={(e) => setNewOfferInverter(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'البطاريات ونظام التخزين:' : 'Batteries Spec:'}</label>
+                  <input
+                    type="text"
+                    value={newOfferBatteries}
+                    onChange={(e) => setNewOfferBatteries(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'الألواح الشمسية:' : 'Panels Spec:'}</label>
+                  <input
+                    type="text"
+                    value={newOfferPanels}
+                    onChange={(e) => setNewOfferPanels(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'السعر الإجمالي:' : 'Total Price:'}</label>
+                  <input
+                    type="number"
+                    value={newOfferPrice}
+                    onChange={(e) => setNewOfferPrice(Number(e.target.value))}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 font-mono"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'العملة:' : 'Currency:'}</label>
+                  <select
+                    value={newOfferCurrency}
+                    onChange={(e) => setNewOfferCurrency(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 font-bold"
+                  >
+                    <option value="USD">USD ($)</option>
+                    <option value="ILS">ILS (₪)</option>
+                    <option value="JOD">JOD (JD)</option>
+                    <option value="EUR">EUR (€)</option>
+                  </select>
+                </div>
+
+                <div className="md:col-span-2 lg:col-span-3 space-y-1">
+                  <label className="font-semibold">{lang === 'ar' ? 'تفاصيل ومميزات العرض:' : 'Offer Description & Details:'}</label>
+                  <textarea
+                    rows={2}
+                    value={newOfferDescAr}
+                    onChange={(e) => setNewOfferDescAr(e.target.value)}
+                    placeholder="اكتب المواصفات والضمانات المشمولة في العرض..."
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950"
+                  />
+                </div>
+
+                <div className="md:col-span-2 lg:col-span-3 pt-2">
+                  <button
+                    type="submit"
+                    className="px-6 py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2 mx-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>{editingOfferId !== null ? (lang === 'ar' ? 'حفظ التعديلات' : 'Save Changes') : (lang === 'ar' ? 'نشر عرض النظام الجديد' : 'Publish New Offer')}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* Offers Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {specialOffers.map((offer) => (
+              <div key={offer.id} className="glass-panel rounded-3xl p-8 border border-slate-200 dark:border-slate-800 space-y-6 flex flex-col justify-between group hover:border-amber-500/50 transition-all duration-300 shadow-xl">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 font-mono text-xs font-bold">
+                      {offer.systemKw} kW System
+                    </div>
+                    {isAdminLoggedIn && (
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => handleEditOffer(offer)}
+                          className="px-2.5 py-1 text-xs bg-amber-500 text-white rounded-lg font-bold hover:bg-amber-600"
+                        >
+                          {lang === 'ar' ? 'تعديل' : 'Edit'}
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOffer(offer.id)}
+                          className="p-1 text-rose-500 hover:text-rose-700 rounded-lg bg-rose-500/10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <h3 className="text-xl font-extrabold tracking-tight">
+                    {lang === 'ar' ? offer.titleAr : offer.titleEn}
+                  </h3>
+
+                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
+                    {lang === 'ar' ? offer.descAr : offer.descEn}
+                  </p>
+
+                  <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-800 text-xs font-medium text-slate-700 dark:text-slate-300">
+                    <div className="flex items-center gap-2">
+                      <Zap className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span>{offer.inverter}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <BatteryCharging className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span>{offer.batteries}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Sun className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>{offer.panels}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between">
+                  <div>
+                    <div className="text-[10px] text-slate-500 uppercase font-bold">{lang === 'ar' ? 'السعر الشامل' : 'Total Package Price'}</div>
+                    <div className="text-xl font-extrabold font-mono text-amber-600 dark:text-amber-400">
+                      {offer.price.toLocaleString()} {offer.currency === 'USD' ? '$' : offer.currency === 'ILS' ? '₪' : offer.currency === 'JOD' ? 'JD' : '€'}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      const text = encodeURIComponent(
+                        `☀️ *شركة روافد لحلول الطاقة* ☀️\n` +
+                        `📌 استفسار عن عرض خاص: *${offer.titleAr}*\n` +
+                        `⚡ قدرة النظام: ${offer.systemKw} كيلوواط\n` +
+                        `💰 السعر: ${offer.price.toLocaleString()} ${offer.currency}\n` +
+                        `يرجى التواصل معنا لتفاصيل الحجز والتركيب.`
+                      );
+                      window.open(`https://wa.me/?text=${text}`, '_blank');
+                    }}
+                    className="px-5 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-lg transition-all flex items-center gap-2"
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    <span>{lang === 'ar' ? 'احجز العرض عبر واتساب' : 'Inquire via WhatsApp'}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
         </main>
       )}
