@@ -41,7 +41,11 @@ import {
   Check,
   MessageCircle,
   FileSpreadsheet,
-  Download
+  Download,
+  Lock,
+  Unlock,
+  Settings,
+  Printer
 } from 'lucide-react';
 
 interface CartItem {
@@ -50,12 +54,129 @@ interface CartItem {
   nameEn: string;
   quantity: number;
   image: string;
+  price?: number;
+}
+
+interface Product {
+  id: number;
+  nameAr: string;
+  nameEn: string;
+  category: string;
+  image: string;
+  descAr: string;
+  descEn: string;
+  price: number;
+}
+
+interface CustomItem {
+  id: number;
+  name: string;
+  warranty: string;
+  qty: number;
+  price: number;
 }
 
 export default function App() {
   const [lang, setLang] = useState<'ar' | 'en'>('ar');
   const [darkMode, setDarkMode] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'calculator' | 'bom-generator' | 'shop' | 'ai-consultant' | 'projects' | 'contact'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'services' | 'calculator' | 'bom-generator' | 'shop' | 'ai-consultant' | 'projects' | 'contact' | 'admin' | 'quotation-builder'>('home');
+
+  // Admin Auth State
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState<boolean>(false);
+  const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
+  const [adminUsername, setAdminUsername] = useState<string>('');
+  const [adminPassword, setAdminPassword] = useState<string>('');
+  const [loginError, setLoginError] = useState<string>('');
+  const [showPricesPublic, setShowPricesPublic] = useState<boolean>(false);
+
+  // Quotation Builder State (Including Terms & Warranties from Bit Power PDF)
+  const [quotation, setQuotation] = useState({
+    clientName: 'شركة النور الصناعية',
+    clientPhone: '0590000000',
+    clientAddress: 'الخليل، رابود - دورا',
+    projectName: 'عرض سعر نظام طاقة شمسية متكامل',
+    issueDate: new Date().toISOString().split('T')[0],
+    validUntil: new Date(Date.now() + 10*86400000).toISOString().split('T')[0],
+    
+    // Currency & Visibility options
+    currency: 'USD',
+    showLinePrices: true,
+    showTerms: true, // Show or hide terms & conditions in PDF proposal
+
+    // Inverter
+    inverterName: 'انفيرتر (Inverter): ماركة Deye بقدرة 50 كيلوواط 3 فاز',
+    inverterWarranty: '2 سنة على الانفيرتر',
+    inverterQty: 1,
+    inverterPrice: 6800,
+
+    // Battery / BESS
+    batteryName: 'بطارية تخزين (Lithium Battery): ماركة Deye BOS-G بسعة تخزين عالية',
+    batteryWarranty: '10 سنوات للبطارية',
+    batteryQty: 1,
+    batteryPrice: 14500,
+
+    // Solar Panels
+    panelName: 'الواح شمسية: ماركة JINKO بقدرة 720 واط ذات كفاءة وعمر تشغيلي عالي',
+    panelWarranty: '12 سنة مصنعية + 25 سنة كفالة إنتاج',
+    panelQty: 70,
+    panelPrice: 275,
+
+    // Accessories & Structure
+    structureName: 'هياكل تركيب معدني ألمنيوم مقاوم للصدأ والعوامل الجوية',
+    structureWarranty: '15 سنة ضد التآكل',
+    structureQty: 1,
+    structurePrice: 2500,
+
+    // Breakers & Protection
+    protectionName: 'قواطع حماية DC/AC، موصلات MC4 وحماية صواعق DC SPD',
+    protectionWarranty: '5 سنوات استبدال',
+    protectionQty: 1,
+    protectionPrice: 950,
+
+    // Financials & Terms from PDF
+    discount: 500,
+    paymentTerms: 'الدفع نقدا / حسب الاتفاق',
+    notes: 'يشمل التركيب والفحص والتشغيل وبرمجة نظام المراقبة عبر الواي فاي.',
+    
+    // Detailed Terms (Editable)
+    termsText: `1. تكون جميع الكفاالت المذكورة اعلاه خاضعة ومقيدة بالكامل، وفقا لشروط واحكام الشركات المصنعة للأجهزة والمعدات.
+2. ان الانتاجية المتوقعة للنظام المذكور تم حسابها ضمن الظروف والمقاييس المعيارية العالمية وقد تتأثر كفاءة هذا الانتاج صعودا او هبوطا تبعا لتغير الظروف الجوية والبيئية المحيطة.
+3. تكون حسابات الطاقة والانتجاية المتوقعة للنظام مرتبطة ومقيدة بحد وكفاءة الاجهزة والبطاريات والالواح المذكورة في ورقة البيانات الفنية (DATA SHEET) الخاصة بكل منها.
+4. تنحصر مسؤولية الشركة الفنية والقانونية في تحقيق الانتاجية المتوقعة للنظام، ولا تتحمل الشركة اي مسؤولية تجاه قيمة او كمية استهلاك الزبون الفعلي للكهرباء.
+5. تخل الشركة مسؤوليتها تماما ولا تتحمل اي تبعات ناتجة عن وجود اخطاء او مشاكل كهربائية مسبقة او خاصة بالمبنى نفسه.
+6. السعر المعروض نهائي وشامل ضريبة القيمة المضافة.
+7. يعتبر هذا العرض ساري المفعول لمدة 10 أيام من تاريخ اصدار العرض وبعد ذلك يمكن أن تطرأ تغيرات على الأسعار بناء على الظروف السوقية.
+8. لا تتحمل الشركة مسؤولية اي اعمال تخريب او تكسير او حوادث طبيعية او اي عبث وتعديل في اعدادات النظام من قبل اي أطراف خارجية خارج الطاقم الفني المعتمد للشركة.
+9. تزامنا مع حرصنا على جودة واستدامة الاداء، تتعهد الشركة بالمتابعة والمراقبة الحثيثة للنظام لمدة ثلاثة (3) شهور كاملة من تاريخ التشغيل الفعلي، للتأكد من عمل النظام بأقصى كفاءة انتاجية، ومراقبة مستويات الاستقرار، وحل اي مشاكل تقنية قد تظهر فوراً لضمان تشغيل آمن ومستدام.`
+  });
+
+  // Custom Extra Items (e.g. ATS Breakers)
+  const [customItems, setCustomItems] = useState<CustomItem[]>([
+    { id: 1, name: 'قواطع تحويل آلي ATS Panel 3-Phase 100A', warranty: '3 Years Warranty', qty: 1, price: 1200 }
+  ]);
+  const [newCustomName, setNewCustomName] = useState<string>('');
+  const [newCustomWarranty, setNewCustomWarranty] = useState<string>('1 Year Warranty');
+  const [newCustomQty, setNewCustomQty] = useState<number>(1);
+  const [newCustomPrice, setNewCustomPrice] = useState<number>(300);
+
+  const addCustomItem = () => {
+    if (!newCustomName.trim()) return;
+    setCustomItems(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        name: newCustomName,
+        warranty: newCustomWarranty,
+        qty: newCustomQty,
+        price: newCustomPrice
+      }
+    ]);
+    setNewCustomName('');
+  };
+
+  const removeCustomItem = (id: number) => {
+    setCustomItems(prev => prev.filter(item => item.id !== id));
+  };
 
   // Calculator State
   const [monthlyBill, setMonthlyBill] = useState<number>(15000);
@@ -71,21 +192,227 @@ export default function App() {
   const [aiResponse, setAiResponse] = useState<string>('');
   const [aiLoading, setAiLoading] = useState<boolean>(false);
 
-  // Quote Form State
-  const [quoteForm, setQuoteForm] = useState({ name: '', company: '', email: '', phone: '', details: '' });
+  // Quote & Site Survey Form State
+  const [quoteForm, setQuoteForm] = useState({ name: '', company: '', email: '', phone: '', details: '', surveyDate: '' });
   const [quoteSubmitted, setQuoteSubmitted] = useState<boolean>(false);
+  const [inquiriesList, setInquiriesList] = useState<any[]>([]);
 
-  // Shop & Cart State (No prices)
+  // Shop & Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
   const [shopCategory, setShopCategory] = useState<string>('all');
   const [checkoutSubmitted, setCheckoutSubmitted] = useState<boolean>(false);
 
-  // WhatsApp Menu State
-  const [isWhatsAppOpen, setIsWhatsAppOpen] = useState<boolean>(false);
+  // Editable Products Catalog State
+  const [products, setProducts] = useState<Product[]>([
+    {
+      id: 101,
+      nameAr: 'عاكس ديي هجين أحادي الطور 5 كيلوواط (Deye 5kW)',
+      nameEn: 'Deye 5kW Single-Phase Hybrid Inverter (SUN-5K-SG03LP1)',
+      category: 'deye',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
+      descAr: 'عاكس ديي هجين مع دعم بطاريات 48 فولت ومراقبة واي فاي مدمجة.',
+      descEn: 'Deye single-phase hybrid inverter with 48V battery support and built-in WiFi.',
+      price: 1250
+    },
+    {
+      id: 102,
+      nameAr: 'عاكس ديي هجين أحادي الطور 8 كيلوواط (Deye 8kW)',
+      nameEn: 'Deye 8kW Hybrid Inverter (SUN-8K-SG04LP1)',
+      category: 'deye',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
+      descAr: 'قدرة عالية على التحمل، دعم تفريغ وشحن عالي وتيار مستمر كبير.',
+      descEn: 'High capacity hybrid inverter with high charge/discharge current.',
+      price: 1850
+    },
+    {
+      id: 103,
+      nameAr: 'عاكس ديي هجين ثلاثي الطور 12 كيلوواط (Deye 12kW 3-Phase)',
+      nameEn: 'Deye 12kW Three-Phase Hybrid Inverter (SUN-12K-SG04LP3)',
+      category: 'deye',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
+      descAr: 'انفيرتر ثلاثي الطور للمنازل الكبيرة والمنشآت التجارية مع كفاءة تحويل فائقة.',
+      descEn: 'Three-phase hybrid inverter for large residential and commercial sites.',
+      price: 2450
+    },
+    {
+      id: 104,
+      nameAr: 'عاكس ديي ثلاثي الطور تجاري 50 كيلوواط (Deye 50kW)',
+      nameEn: 'Deye 50kW Commercial Three-Phase Inverter',
+      category: 'deye',
+      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
+      descAr: 'حل صناعي متكامل للمصانع والمشاريع التجارية الكبرى بمواصفات حماية متقدمة.',
+      descEn: 'Commercial industrial grade inverter for large factories and utility scale.',
+      price: 6800
+    },
+    {
+      id: 105,
+      nameAr: 'خزان بطاريات ديي ليثيوم عالية الجهد (Deye BOS-G 61.4kWh)',
+      nameEn: 'Deye BOS-G High Voltage Lithium Battery 61.4kWh',
+      category: 'deye',
+      image: '/src/assets/images/deye_bess_battery_1795377363514.jpg',
+      descAr: 'نظام تخزين بطاريات ديي ليثيوم آيوني عالي الجهد للمشاريع الكبرى والتجارية.',
+      descEn: 'High-voltage modular lithium battery storage system for commercial applications.',
+      price: 14500
+    },
+    {
+      id: 201,
+      nameAr: 'لوح شمسي جينكو تايغر نيو 440 واط (سكني)',
+      nameEn: 'Jinko Tiger Neo N-Type 440W (Residential)',
+      category: 'jinko',
+      image: '/src/assets/images/jinko_solar_panel_1795377362014.jpg',
+      descAr: 'مقاس مثالي للأسطح السكنية بمظهر أنيق وكفاءة عالية في الإضاءة المنخفضة.',
+      descEn: 'Compact residential size with elegant black frame and low-light performance.',
+      price: 145
+    },
+    {
+      id: 202,
+      nameAr: 'لوح شمسي جينكو تايغر نيو 580 واط (تجاري)',
+      nameEn: 'Jinko Tiger Neo N-Type 580W (Commercial)',
+      category: 'jinko',
+      image: '/src/assets/images/jinko_solar_panel_1795377362014.jpg',
+      descAr: 'المقاس الأكثر طلباً للمشاريع التجارية والأسطح الصناعية بكفاءة 22.5%.',
+      descEn: 'Most popular commercial size delivering 22.5% high efficiency.',
+      price: 185
+    },
+    {
+      id: 203,
+      nameAr: 'لوح شمسي جينكو تايغر نيو 620 واط (صناعي عالي القدرة)',
+      nameEn: 'Jinko Tiger Neo N-Type 620W (Industrial)',
+      category: 'jinko',
+      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
+      descAr: 'قدرة متقدمة 620 واط للمشاريع الصناعية الكبرى مع معامل درجة حرارة ممتاز.',
+      descEn: 'Advanced 620W high power industrial module with excellent temperature coefficient.',
+      price: 210
+    },
+    {
+      id: 204,
+      nameAr: 'لوح شمسي جينكو تايغر نيو 650 واط (محطات طاقة)',
+      nameEn: 'Jinko Tiger Neo N-Type 650W (Utility)',
+      category: 'jinko',
+      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
+      descAr: 'ألواح 650 واط عالية الإنتاجية لمشاريع الطاقة الشمسية الكبرى والمزارع الشمسية.',
+      descEn: 'High-yield 650W panels designed for utility-scale solar farms.',
+      price: 235
+    },
+    {
+      id: 205,
+      nameAr: 'لوح شمسي جينكو تايغر نيو 720 واط ألترا (الجيل الأحدث)',
+      nameEn: 'Jinko Tiger Neo 720W Ultra Industrial',
+      category: 'jinko',
+      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
+      descAr: 'القدرة الأضخم 720 واط تكنولوجيا ثنائية الوجه (Bifacial) للمحطات العملاقة وتوفير مساحة التركيب.',
+      descEn: 'Massive 720W ultra high-power bifacial module for utility-scale giants.',
+      price: 275
+    },
+    {
+      id: 301,
+      nameAr: 'هيكل تركيب معدني ألمنيوم مقاوم للصدأ (Mounting Rails Kit per kW)',
+      nameEn: 'Aluminum Solar Mounting Structure Kit (Per kW)',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'قواعد ومشابك تثبيت ألمنيوم مقاومة للتآكل والأحمال الريحية الشديدة.',
+      descEn: 'Corrosion-resistant aluminum mounting rails and clamps for secure roof fixing.',
+      price: 45
+    },
+    {
+      id: 302,
+      nameAr: 'قواعد تثبيت مائلة للألواح على الأسطح المستوية (Triangle Brackets)',
+      nameEn: 'Adjustable Flat Roof Triangle Mounting Brackets',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'قواعد مثلثية ألمنيوم لضبط زاوية ميل الألواح المثالية على الأسطح الخرسانية المستوية.',
+      descEn: 'Adjustable aluminum triangle brackets for optimal tilt angle on flat concrete roofs.',
+      price: 35
+    },
+    {
+      id: 303,
+      nameAr: 'أسلاك طاقة شمسية DC نحاس خالص مقاس 4 مم² (لفة 100 متر)',
+      nameEn: 'Solar DC Copper Cable 4mm² UV Resistant (100m Roll)',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'أسلاك توصيل معزولة مزدوجة مخصصة لربط الألواح الشمسية.',
+      descEn: 'Dual insulated pure copper DC cable for solar panel string connection.',
+      price: 85
+    },
+    {
+      id: 304,
+      nameAr: 'أسلاك طاقة شمسية DC نحاس خالص مقاس 6 مم² (لفة 100 متر)',
+      nameEn: 'Solar DC Copper Cable 6mm² UV Resistant (100m Roll)',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'كابلات نحاسية معزولة مزدوجة مقاس 6 مم² مقاومة لأشعة الشمس المباشرة.',
+      descEn: 'Heavy duty 6mm² copper cables resistant to UV rays and extreme temperatures.',
+      price: 110
+    },
+    {
+      id: 305,
+      nameAr: 'موصلات طاقة شمسية MC4 أصلية (زوج ذكر وأنثى - 10 أزواج)',
+      nameEn: 'Original MC4 Solar Connectors (10 Pairs Pack)',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'موصلات MC4 أصلية مقاومة للماء والغبار بمعيار IP68 لتوصيل آمن بدون فقد في الطاقة.',
+      descEn: 'IP68 waterproof original MC4 connectors for secure low-loss PV connections.',
+      price: 25
+    },
+    {
+      id: 306,
+      nameAr: 'جهاز حماية من الارتفاع المفاجئ والصواعق DC SPD 1000V',
+      nameEn: 'DC Surge Protection Device SPD 1000V (2-Pole)',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'حماية متقدمة لمنظومة الألواح والانفيرتر ضد الصواعق وارتفاع الجهد المفاجئ.',
+      descEn: 'Advanced DC surge protection device against lightning and voltage spikes.',
+      price: 60
+    },
+    {
+      id: 307,
+      nameAr: 'قاطع حماية تيار مستمر DC Breaker 1000V 32A/63A',
+      nameEn: 'DC Circuit Breaker 1000V (32A - 63A)',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'قاطع أمان مخصص لدوائر الألواح الشمسية بجهد عالي وتيار مستمر.',
+      descEn: 'High voltage DC safety circuit breaker for solar strings.',
+      price: 40
+    },
+    {
+      id: 308,
+      nameAr: 'قواطع حماية تيار متناوب AC MCCB / MCB 3-Phase',
+      nameEn: 'AC Circuit Breaker 3-Phase MCCB / MCB',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'قواطع رئيسية ثلاثية الطور لحماية مخرج الانفيرتر واللوحة الرئيسية.',
+      descEn: '3-phase AC main circuit breakers for inverter output and main panel protection.',
+      price: 95
+    },
+    {
+      id: 309,
+      nameAr: 'أسلاك تأريض نحاسية مرنة للتأريض 16 مم² (لفة 50 متر)',
+      nameEn: 'Flexible Grounding Earth Copper Wire 16mm² (50m)',
+      category: 'accessories',
+      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
+      descAr: 'سلك تأريض أخضر/أصفر معتمد لحماية الهياكل والألواح والانفيرتر من الصواعق وتفريغ الشحنات.',
+      descEn: 'Certified green/yellow grounding earth wire for structural safety and lightning protection.',
+      price: 130
+    }
+  ]);
 
-  // Project Filter State
-  const [projectFilter, setProjectFilter] = useState<'all' | 'solar' | 'bess' | 'smart-grid'>('all');
+  const handleAdminLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if ((adminUsername === 'malek' || adminUsername === 'ezzaddin' || adminUsername === 'admin') && adminPassword === 'rawafid2026') {
+      setIsAdminLoggedIn(true);
+      setShowLoginModal(false);
+      setAdminPassword('');
+      setLoginError('');
+      setActiveTab('admin');
+    } else {
+      setLoginError(lang === 'ar' ? 'اسم المستخدم أو كلمة المرور غير صحيحة. (كلمة المرور الافتراضية: rawafid2026)' : 'Invalid credentials. (Default password: rawafid2026)');
+    }
+  };
+
+  const handlePriceUpdate = (id: number, newPrice: number) => {
+    setProducts(prev => prev.map(p => p.id === id ? { ...p, price: newPrice } : p));
+  };
 
   const toggleDarkMode = () => {
     setDarkMode(!darkMode);
@@ -98,6 +425,30 @@ export default function App() {
     document.documentElement.setAttribute('dir', newLang === 'ar' ? 'rtl' : 'ltr');
     document.documentElement.setAttribute('lang', newLang);
   };
+
+  // Currency multiplier & symbol
+  const currencySymbol = 
+    quotation.currency === 'USD' ? '$' :
+    quotation.currency === 'ILS' ? '₪' :
+    quotation.currency === 'JOD' ? 'JD' : '€';
+
+  const currencyMultiplier = 
+    quotation.currency === 'USD' ? 1 :
+    quotation.currency === 'ILS' ? 3.7 :
+    quotation.currency === 'JOD' ? 0.71 : 0.92;
+
+  // Quotation Calculations with Currency & Custom Items
+  const baseStandardItemsTotal = 
+    (quotation.inverterQty * quotation.inverterPrice) +
+    (quotation.batteryQty * quotation.batteryPrice) +
+    (quotation.panelQty * quotation.panelPrice) +
+    (quotation.structureQty * quotation.structurePrice) +
+    (quotation.protectionQty * quotation.protectionPrice);
+
+  const customItemsTotal = customItems.reduce((sum, item) => sum + (item.qty * item.price), 0);
+
+  const subtotalQuotation = (baseStandardItemsTotal + customItemsTotal) * currencyMultiplier;
+  const totalQuotationAmount = Math.max(0, subtotalQuotation - (quotation.discount * currencyMultiplier));
 
   // Calculator Math
   const estimatedSystemSize = Math.round(monthlyBill / 180); // kW
@@ -115,209 +466,11 @@ export default function App() {
   const dcSpdCount = Math.ceil(bomSystemKw / 25);
   const acBreakerAmps = Math.round((bomSystemKw * 1000) / (380 * 1.732) * 1.25);
 
-  // Partners & Global Brands
-  const partnerBrands = [
-    { name: 'Deye', desc: 'Authorized Distributor', logoText: 'DEYE' },
-    { name: 'Sungrow', desc: 'Inverters & Storage', logoText: 'SUNGROW' },
-    { name: 'Huawei Solar', desc: 'Smart String Inverters', logoText: 'HUAWEI' },
-    { name: 'Canadian Solar', desc: 'High-Power PV Modules', logoText: 'CANADIAN SOLAR' },
-    { name: 'Jinko Solar', desc: 'Tiger Neo 440W - 720W', logoText: 'JINKO SOLAR' },
-    { name: 'Longi Solar', desc: 'Hi-MO Technology', logoText: 'LONGI' },
-    { name: 'BYD Energy', desc: 'Lithium Battery Cells', logoText: 'BYD' },
-    { name: 'Schneider Electric', desc: 'Switchgear & Protection', logoText: 'SCHNEIDER' }
-  ];
-
-  // Products Catalog (NO PRICES)
-  const productsData = [
-    // --- Deye Inverters & BESS ---
-    {
-      id: 101,
-      nameAr: 'عاكس ديي هجين أحادي الطور 5 كيلوواط (Deye 5kW)',
-      nameEn: 'Deye 5kW Single-Phase Hybrid Inverter (SUN-5K-SG03LP1)',
-      category: 'deye',
-      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
-      descAr: 'عاكس ديي هجين مع دعم بطاريات 48 فولت ومراقبة واي فاي مدمجة.',
-      descEn: 'Deye single-phase hybrid inverter with 48V battery support and built-in WiFi.'
-    },
-    {
-      id: 102,
-      nameAr: 'عاكس ديي هجين أحادي الطور 8 كيلوواط (Deye 8kW)',
-      nameEn: 'Deye 8kW Hybrid Inverter (SUN-8K-SG04LP1)',
-      category: 'deye',
-      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
-      descAr: 'قدرة عالية على التحمل، دعم تفريغ وشحن عالي وتيار مستمر كبير.',
-      descEn: 'High capacity hybrid inverter with high charge/discharge current.'
-    },
-    {
-      id: 103,
-      nameAr: 'عاكس ديي هجين ثلاثي الطور 12 كيلوواط (Deye 12kW 3-Phase)',
-      nameEn: 'Deye 12kW Three-Phase Hybrid Inverter (SUN-12K-SG04LP3)',
-      category: 'deye',
-      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
-      descAr: 'انفيرتر ثلاثي الطور للمنازل الكبيرة والمنشآت التجارية مع كفاءة تحويل فائقة.',
-      descEn: 'Three-phase hybrid inverter for large residential and commercial sites.'
-    },
-    {
-      id: 104,
-      nameAr: 'عاكس ديي ثلاثي الطور تجاري 50 كيلوواط (Deye 50kW)',
-      nameEn: 'Deye 50kW Commercial Three-Phase Inverter',
-      category: 'deye',
-      image: '/src/assets/images/deye_hybrid_inverter_1795377361793.jpg',
-      descAr: 'حل صناعي متكامل للمصانع والمشاريع التجارية الكبرى بمواصفات حماية متقدمة.',
-      descEn: 'Commercial industrial grade inverter for large factories and utility scale.'
-    },
-    {
-      id: 105,
-      nameAr: 'خزان بطاريات ديي ليثيوم عالية الجهد (Deye BOS-G 61.4kWh)',
-      nameEn: 'Deye BOS-G High Voltage Lithium Battery 61.4kWh',
-      category: 'deye',
-      image: '/src/assets/images/deye_bess_battery_1795377363514.jpg',
-      descAr: 'نظام تخزين بطاريات ديي ليثيوم آيوني عالي الجهد للمشاريع الكبرى والتجارية.',
-      descEn: 'High-voltage modular lithium battery storage system for commercial applications.'
-    },
-
-    // --- Jinko Solar Panels (All Sizes: 440W to 720W) ---
-    {
-      id: 201,
-      nameAr: 'لوح شمسي جينكو تايغر نيو 440 واط (سكني)',
-      nameEn: 'Jinko Tiger Neo N-Type 440W (Residential)',
-      category: 'jinko',
-      image: '/src/assets/images/jinko_solar_panel_1795377362014.jpg',
-      descAr: 'مقاس مثالي للأسطح السكنية بمظهر أنيق وكفاءة عالية في الإضاءة المنخفضة.',
-      descEn: 'Compact residential size with elegant black frame and low-light performance.'
-    },
-    {
-      id: 202,
-      nameAr: 'لوح شمسي جينكو تايغر نيو 580 واط (تجاري)',
-      nameEn: 'Jinko Tiger Neo N-Type 580W (Commercial)',
-      category: 'jinko',
-      image: '/src/assets/images/jinko_solar_panel_1795377362014.jpg',
-      descAr: 'المقاس الأكثر طلباً للمشاريع التجارية والأسطح الصناعية بكفاءة 22.5%.',
-      descEn: 'Most popular commercial size delivering 22.5% high efficiency.'
-    },
-    {
-      id: 203,
-      nameAr: 'لوح شمسي جينكو تايغر نيو 620 واط (صناعي عالي القدرة)',
-      nameEn: 'Jinko Tiger Neo N-Type 620W (Industrial)',
-      category: 'jinko',
-      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
-      descAr: 'قدرة متقدمة 620 واط للمشاريع الصناعية الكبرى مع معامل درجة حرارة ممتاز.',
-      descEn: 'Advanced 620W high power industrial module with excellent temperature coefficient.'
-    },
-    {
-      id: 204,
-      nameAr: 'لوح شمسي جينكو تايغر نيو 650 واط (محطات طاقة)',
-      nameEn: 'Jinko Tiger Neo N-Type 650W (Utility)',
-      category: 'jinko',
-      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
-      descAr: 'ألواح 650 واط عالية الإنتاجية لمشاريع الطاقة الشمسية الكبرى والمزارع الشمسية.',
-      descEn: 'High-yield 650W panels designed for utility-scale solar farms.'
-    },
-    {
-      id: 205,
-      nameAr: 'لوح شمسي جينكو تايغر نيو 720 واط ألترا (الجيل الأحدث)',
-      nameEn: 'Jinko Tiger Neo 720W Ultra Industrial',
-      category: 'jinko',
-      image: '/src/assets/images/jinko_solar_panel_1795365670538.jpg',
-      descAr: 'القدرة الأضخم 720 واط تكنولوجيا ثنائية الوجه (Bifacial) للمحطات العملاقة وتوفير مساحة التركيب.',
-      descEn: 'Massive 720W ultra high-power bifacial module for utility-scale giants.'
-    },
-
-    // --- Energy Accessories & Protection ---
-    {
-      id: 301,
-      nameAr: 'هيكل تركيب معدني ألمنيوم مقاوم للصدأ (Mounting Rails Kit per kW)',
-      nameEn: 'Aluminum Solar Mounting Structure Kit (Per kW)',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'قواعد ومشابك تثبيت ألمنيوم مقاومة للتآكل والأحمال الريحية الشديدة.',
-      descEn: 'Corrosion-resistant aluminum mounting rails and clamps for secure roof fixing.'
-    },
-    {
-      id: 302,
-      nameAr: 'قواعد تثبيت مائلة للألواح على الأسطح المستوية (Triangle Brackets)',
-      nameEn: 'Adjustable Flat Roof Triangle Mounting Brackets',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'قواعد مثلثية ألمنيوم لضبط زاوية ميل الألواح المثالية على الأسطح الخرسانية المستوية.',
-      descEn: 'Adjustable aluminum triangle brackets for optimal tilt angle on flat concrete roofs.'
-    },
-    {
-      id: 303,
-      nameAr: 'سلاك طاقة شمسية DC نحاس خالص مقاس 4 مم² (لفة 100 متر)',
-      nameEn: 'Solar DC Copper Cable 4mm² UV Resistant (100m Roll)',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'أسلاك توصيل معزولة مزدوجة مخصصة لربط الألواح الشمسية.',
-      descEn: 'Dual insulated pure copper DC cable for solar panel string connection.'
-    },
-    {
-      id: 304,
-      nameAr: 'أسلاك طاقة شمسية DC نحاس خالص مقاس 6 مم² (لفة 100 متر)',
-      nameEn: 'Solar DC Copper Cable 6mm² UV Resistant (100m Roll)',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'كابلات نحاسية معزولة مزدوجة مقاس 6 مم² مقاومة لأشعة الشمس المباشرة.',
-      descEn: 'Heavy duty 6mm² copper cables resistant to UV rays and extreme temperatures.'
-    },
-    {
-      id: 305,
-      nameAr: 'موصلات طاقة شمسية MC4 أصلية (زوج ذكر وأنثى - 10 أزواج)',
-      nameEn: 'Original MC4 Solar Connectors (10 Pairs Pack)',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'موصلات MC4 أصلية مقاومة للماء والغبار بمعيار IP68 لتوصيل آمن بدون فقد في الطاقة.',
-      descEn: 'IP68 waterproof original MC4 connectors for secure low-loss PV connections.'
-    },
-    {
-      id: 306,
-      nameAr: 'جهاز حماية من الارتفاع المفاجئ والصواعق DC SPD 1000V',
-      nameEn: 'DC Surge Protection Device SPD 1000V (2-Pole)',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'حماية متقدمة لمنظومة الألواح والانفيرتر ضد الصواعق وارتفاع الجهد المفاجئ.',
-      descEn: 'Advanced DC surge protection device against lightning and voltage spikes.'
-    },
-    {
-      id: 307,
-      nameAr: 'قاطع حماية تيار مستمر DC Breaker 1000V 32A/63A',
-      nameEn: 'DC Circuit Breaker 1000V (32A - 63A)',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'قاطع أمان مخصص لدوائر الألواح الشمسية بجهد عالي وتيار مستمر.',
-      descEn: 'High voltage DC safety circuit breaker for solar strings.'
-    },
-    {
-      id: 308,
-      nameAr: 'قواطع حماية تيار متناوب AC MCCB / MCB 3-Phase',
-      nameEn: 'AC Circuit Breaker 3-Phase MCCB / MCB',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'قواطع رئيسية ثلاثية الطور لحماية مخرج الانفيرتر واللوحة الرئيسية.',
-      descEn: '3-phase AC main circuit breakers for inverter output and main panel protection.'
-    },
-    {
-      id: 309,
-      nameAr: 'أسلاك تأريض نحاسية مرنة للتأريض 16 مم² (لفة 50 متر)',
-      nameEn: 'Flexible Grounding Earth Copper Wire 16mm² (50m)',
-      category: 'accessories',
-      image: '/src/assets/images/solar_accessories_1795377362509.jpg',
-      descAr: 'سلك تأريض أخضر/أصفر معتمد لحماية الهياكل والألواح والانفيرتر من الصواعق وتفريغ الشحنات.',
-      descEn: 'Certified green/yellow grounding earth wire for structural safety and lightning protection.'
-    }
-  ];
-
   const filteredProducts = shopCategory === 'all'
-    ? productsData
-    : shopCategory === 'deye'
-    ? productsData.filter(p => p.category === 'deye')
-    : shopCategory === 'jinko'
-    ? productsData.filter(p => p.category === 'jinko')
-    : shopCategory === 'accessories'
-    ? productsData.filter(p => p.category === 'accessories')
-    : productsData;
+    ? products
+    : products.filter(p => p.category === shopCategory);
 
-  const addToCart = (product: typeof productsData[0]) => {
+  const addToCart = (product: Product) => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id);
       if (existing) {
@@ -328,7 +481,8 @@ export default function App() {
         nameAr: product.nameAr,
         nameEn: product.nameEn,
         quantity: 1,
-        image: product.image
+        image: product.image,
+        price: product.price
       }];
     });
     setIsCartOpen(true);
@@ -346,7 +500,6 @@ export default function App() {
 
   const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Handle AI Consultation
   const handleAIConsult = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!aiPrompt.trim()) return;
@@ -367,7 +520,7 @@ export default function App() {
       if (data.success) {
         setAiResponse(data.text);
       } else {
-        setAiResponse(lang === 'ar' ? 'عذراً، حدث خطأ في معالجة الاستشارة. يرجى المحاولة مرة أخرى.' : 'Sorry, an error occurred. Please try again.');
+        setAiResponse(lang === 'ar' ? 'عذراً، حدث خطأ في معالجة الاستشارة.' : 'Sorry, an error occurred.');
       }
     } catch (err) {
       setAiResponse(lang === 'ar' ? 'خطأ في الاتصال بالخادم.' : 'Server connection error.');
@@ -378,67 +531,33 @@ export default function App() {
 
   const handleQuoteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const newInquiry = {
+      id: Date.now(),
+      ...quoteForm,
+      date: new Date().toLocaleDateString()
+    };
+    setInquiriesList(prev => [newInquiry, ...prev]);
     setQuoteSubmitted(true);
   };
 
-  const projectsData = [
-    {
-      id: 1,
-      titleAr: 'محطة الطاقة الشمسية الكهروضوئية الصناعية - مجمع الرياض',
-      titleEn: 'Industrial Solar PV Plant - Riyadh Complex',
-      category: 'solar',
-      capacity: '45 MW',
-      savings: '65% Reduction in Energy Cost',
-      image: '/src/assets/images/hero_solar_farm_1795365670898.jpg',
-      descAr: 'تركيب نظام شمسي متطور يغطي المصانع والمستودعات مع محولات مركزية وأنظمة تحكم ذكية.',
-      descEn: 'Advanced utility-scale solar installation covering industrial complexes with centralized smart inverters.'
-    },
-    {
-      id: 2,
-      titleAr: 'مشروع الطاقة الشمسية على أسطح المصانع - دبي',
-      titleEn: 'Commercial Rooftop PV Project - Dubai',
-      category: 'solar',
-      capacity: '12 MW',
-      savings: '58% Bill Savings',
-      image: '/src/assets/images/industrial_rooftop_solar_1795365670538.jpg',
-      descAr: 'تجهيز أسطح المصانع بألواح شمسية عالية الكفاءة مقاومة لدرجات الحرارة العالية والغبار.',
-      descEn: 'High-efficiency rooftop installation engineered for extreme desert climate resilience.'
-    },
-    {
-      id: 3,
-      titleAr: 'مركز تحكم الشبكات الذكية وإنترنت الأشياء - جدة',
-      titleEn: 'Smart Grid IoT Control Center - Jeddah',
-      category: 'smart-grid',
-      capacity: '120 MW Grid Monitored',
-      savings: 'Real-time Load Balancing',
-      image: '/src/assets/images/smart_grid_control_1795365670666.jpg',
-      descAr: 'غرفة تحكم مركزية متكاملة لتقارير تتبع إنتاج واستهلاك الطاقة والتحكم الآلي بالشبكة.',
-      descEn: 'Centralized telemetry command center for real-time energy production and automated load balancing.'
-    },
-    {
-      id: 4,
-      titleAr: 'نظام تخزين طاقة البطاريات (BESS) - مشروع نيوم',
-      titleEn: 'Battery Energy Storage System (BESS) - NEOM',
-      category: 'bess',
-      capacity: '30 MWh Storage',
-      savings: '24/7 Uninterrupted Clean Power',
-      image: '/src/assets/images/battery_storage_system_1795365671063.jpg',
-      descAr: 'وحدات تخزين بطاريات الليثيوم المتقدمة لتأمين الأحمال الحرجة وإدارة ذروة الاستهلاك.',
-      descEn: 'Containerized lithium BESS units ensuring critical power backup and peak shaving.'
-    }
+  const partnerBrands = [
+    { name: 'Deye', desc: 'Authorized Distributor', logoText: 'DEYE' },
+    { name: 'Sungrow', desc: 'Inverters & Storage', logoText: 'SUNGROW' },
+    { name: 'Huawei Solar', desc: 'Smart String Inverters', logoText: 'HUAWEI' },
+    { name: 'Canadian Solar', desc: 'High-Power PV Modules', logoText: 'CANADIAN SOLAR' },
+    { name: 'Jinko Solar', desc: 'Tiger Neo 440W - 720W', logoText: 'JINKO SOLAR' },
+    { name: 'Longi Solar', desc: 'Hi-MO Technology', logoText: 'LONGI' },
+    { name: 'BYD Energy', desc: 'Lithium Battery Cells', logoText: 'BYD' },
+    { name: 'Schneider Electric', desc: 'Switchgear & Protection', logoText: 'SCHNEIDER' }
   ];
-
-  const filteredProjects = projectFilter === 'all'
-    ? projectsData
-    : projectsData.filter(p => p.category === projectFilter);
 
   return (
     <div className={`min-h-screen ${darkMode ? 'dark bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} transition-colors duration-300 relative`}>
       
-      {/* Top Bar Contract (Strict 3 zones) */}
-      <header className="sticky top-0 z-50 glass-panel border-b border-slate-200/80 dark:border-slate-800/80 px-6 py-4 flex items-center justify-between gap-8">
+      {/* Top Header */}
+      <header className="sticky top-0 z-50 glass-panel border-b border-slate-200/80 dark:border-slate-800/80 px-6 py-4 flex items-center justify-between gap-8 print:hidden">
         
-        {/* Zone 1: Brand Wordmark with Logo */}
+        {/* Zone 1: Logo & Brand */}
         <div className="flex items-center gap-3 shrink-0 cursor-pointer" onClick={() => setActiveTab('home')}>
           <img
             src="/assets/aistudio/Rawafed_Renewable_Energy_Logo_614c1e0c.png"
@@ -457,40 +576,40 @@ export default function App() {
         </div>
 
         {/* Zone 2: Navigation Links */}
-        <nav className="hidden lg:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
+        <nav className="hidden lg:flex items-center gap-5 text-sm font-medium text-slate-600 dark:text-slate-300">
           <button onClick={() => setActiveTab('home')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'home' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'الرئيسية' : 'Home'}
           </button>
-          <button onClick={() => setActiveTab('services')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'services' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
-            {lang === 'ar' ? 'حلولنا وخدماتنا' : 'Services'}
+          <button onClick={() => setActiveTab('quotation-builder')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap flex items-center gap-1 ${activeTab === 'quotation-builder' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
+            <FileText className="w-4 h-4 text-amber-500" />
+            <span>{lang === 'ar' ? 'منشئ عروض الأسعار (PDF)' : 'Quotation Builder'}</span>
           </button>
           <button onClick={() => setActiveTab('shop')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'shop' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}
           </button>
           <button onClick={() => setActiveTab('bom-generator')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'bom-generator' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
-            {lang === 'ar' ? 'حاسبة المكونات (BOM)' : 'System BOM Calculator'}
-          </button>
-          <button onClick={() => setActiveTab('calculator')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'calculator' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
-            {lang === 'ar' ? 'حاسبة الوفورات' : 'Savings Calculator'}
+            {lang === 'ar' ? 'حاسبة المكونات' : 'BOM Calculator'}
           </button>
           <button onClick={() => setActiveTab('ai-consultant')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'ai-consultant' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'المستشار الذكي' : 'AI Consultant'}
           </button>
-          <button onClick={() => setActiveTab('projects')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'projects' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
-            {lang === 'ar' ? 'مشاريعنا' : 'Projects'}
-          </button>
           <button onClick={() => setActiveTab('contact')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap ${activeTab === 'contact' ? 'text-amber-600 dark:text-amber-400 font-semibold' : ''}`}>
             {lang === 'ar' ? 'اتصل بنا' : 'Contact'}
           </button>
+          {isAdminLoggedIn && (
+            <button onClick={() => setActiveTab('admin')} className={`hover:text-amber-600 dark:hover:text-amber-400 transition-colors whitespace-nowrap text-amber-500 font-bold flex items-center gap-1 ${activeTab === 'admin' ? 'border-b-2 border-amber-500' : ''}`}>
+              <Settings className="w-4 h-4" />
+              <span>{lang === 'ar' ? 'لوحة تحكم المشرف' : 'Admin'}</span>
+            </button>
+          )}
         </nav>
 
-        {/* Zone 3: Primary Action & Toggles */}
+        {/* Zone 3: Actions & Admin Login */}
         <div className="flex items-center gap-3 shrink-0">
-          {/* Cart / Inquiry List Button */}
           <button
             onClick={() => setIsCartOpen(true)}
             className="relative p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors"
-            title="Inquiry List"
+            title="Inquiry Cart"
           >
             <ShoppingCart className="w-4 h-4" />
             {totalItemsCount > 0 && (
@@ -500,10 +619,26 @@ export default function App() {
             )}
           </button>
 
+          {!isAdminLoggedIn ? (
+            <button
+              onClick={() => setShowLoginModal(true)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-500/50 bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-all flex items-center gap-1.5"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>{lang === 'ar' ? 'دخول المهندسين' : 'Admin Login'}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => { setIsAdminLoggedIn(false); setActiveTab('home'); }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-rose-500/10 text-rose-600 border border-rose-500/30 hover:bg-rose-500/20 transition-all"
+            >
+              {lang === 'ar' ? 'خروج' : 'Logout'}
+            </button>
+          )}
+
           <button
             onClick={toggleLang}
             className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors flex items-center gap-1.5"
-            title="Switch Language"
           >
             <Globe className="w-3.5 h-3.5" />
             <span>{lang === 'ar' ? 'EN' : 'العربية'}</span>
@@ -512,23 +647,69 @@ export default function App() {
           <button
             onClick={toggleDarkMode}
             className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors"
-            title="Toggle Dark Mode"
           >
             {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-700" />}
-          </button>
-
-          <button
-            onClick={() => setActiveTab('contact')}
-            className="px-4 py-2 text-xs font-semibold text-white energy-gradient rounded-lg shadow-md hover:opacity-95 transition-all whitespace-nowrap shrink-0 flex items-center gap-2"
-          >
-            <span>{lang === 'ar' ? 'اطلب استشارة' : 'Request Proposal'}</span>
-            <ArrowRight className={`w-3.5 h-3.5 ${lang === 'ar' ? 'rotate-180' : ''}`} />
           </button>
         </div>
 
       </header>
 
-      {/* Main Content Sections */}
+      {/* Admin Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white dark:bg-slate-900 rounded-2xl p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-2 font-bold text-lg">
+                <Lock className="w-5 h-5 text-amber-500" />
+                <span>{lang === 'ar' ? 'دخول المشرفين (م. مالك أو م. عز الدين)' : 'Admin Portal Login'}</span>
+              </div>
+              <button onClick={() => setShowLoginModal(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">{lang === 'ar' ? 'اسم المستخدم (malek أو ezzaddin أو admin)' : 'Username'}</label>
+                <input
+                  required
+                  type="text"
+                  value={adminUsername}
+                  onChange={(e) => setAdminUsername(e.target.value)}
+                  placeholder="malek / ezzaddin"
+                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold">{lang === 'ar' ? 'كلمة المرور (الافتراضية: rawafid2026)' : 'Password (default: rawafid2026)'}</label>
+                <input
+                  required
+                  type="password"
+                  value={adminPassword}
+                  onChange={(e) => setAdminPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+                />
+              </div>
+
+              {loginError && (
+                <p className="text-xs text-rose-500 font-semibold">{loginError}</p>
+              )}
+
+              <button
+                type="submit"
+                className="w-full py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2"
+              >
+                <Unlock className="w-4 h-4" />
+                <span>{lang === 'ar' ? 'تسجيل الدخول للوحة التحكم' : 'Login to Admin Dashboard'}</span>
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Main Content Tabs */}
       {activeTab === 'home' && (
         <main>
           {/* Hero Section */}
@@ -546,40 +727,40 @@ export default function App() {
             <div className="relative z-10 max-w-5xl mx-auto text-center space-y-6">
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold backdrop-blur-md">
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>{lang === 'ar' ? 'جديدنا: حاسبة المكونات الهندسية (BOM) وألواح Jinko 720W' : 'New: System BOM Calculator & Jinko 720W'}</span>
+                <span>{lang === 'ar' ? 'تحديث: دمج الشروط والأحكام الرسمية المعتمدة مع خيارات التعديل والإخفاء' : 'New: Official Terms & Conditions Integration'}</span>
               </div>
 
               <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight leading-tight max-w-4xl mx-auto">
                 {lang === 'ar'
-                  ? 'منصة شركة روافد المتكاملة لحلول الطاقة المتجددة'
-                  : 'Rawafid Energy Solutions Comprehensive Platform'}
+                  ? 'شركة روافد لحلول الطاقة المتجددة والأنظمة الكهروضوئية'
+                  : 'Rawafid Energy Solutions & Solar Systems'}
               </h1>
 
               <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto font-normal leading-relaxed">
                 {lang === 'ar'
-                  ? 'اكتشف أحدث إضافاتنا: حاسبة حصر المكونات الهندسية (BOM)، معرض ألواح جينكو بكل المقاسات، أجهزة Deye، وتواصل فوري عبر واتساب.'
-                  : 'Discover our new additions: Automated System BOM Calculator, Jinko panels catalog, Deye systems, and instant WhatsApp chat.'}
+                  ? 'بقيادة م. مالك حريبات وم. عز الدين بدارين. وكلاء وموزعون لألواح Jinko (440W-720W)، أجهزة Deye، واكسسوارات التركيب والوقاية.'
+                  : 'Led by Eng. Malek Hraibat & Eng. Ezzaddin Badarin. Authorized distributors for Jinko panels, Deye inverters, and accessories.'}
               </p>
 
               <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
                 <button
-                  onClick={() => setActiveTab('bom-generator')}
+                  onClick={() => setActiveTab('quotation-builder')}
                   className="px-6 py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-lg hover:shadow-amber-500/25 transition-all flex items-center gap-2"
                 >
-                  <FileSpreadsheet className="w-4 h-4" />
-                  <span>{lang === 'ar' ? 'حاسبة المكونات الهندسية (BOM)' : 'System BOM Calculator'}</span>
+                  <FileText className="w-4 h-4" />
+                  <span>{lang === 'ar' ? 'صياغة وطباعة عرض سعر للزبون' : 'Create Client Quotation'}</span>
                 </button>
 
                 <button
                   onClick={() => setActiveTab('shop')}
-                  className="px-6 py-3.5 text-sm font-bold text-slate-100 bg-slate-800/80 hover:bg-slate-800 border border-slate-700 rounded-xl backdrop-blur-md transition-all flex items-center gap-2"
+                  className="px-6 py-3.5 text-sm font-bold text-slate-100 bg-slate-800/85 hover:bg-slate-800 border border-slate-700 rounded-xl backdrop-blur-md transition-all flex items-center gap-2"
                 >
                   <ShoppingBag className="w-4 h-4 text-amber-400" />
-                  <span>{lang === 'ar' ? 'معرض المنتجات بدون أسعار' : 'Products Catalog'}</span>
+                  <span>{lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}</span>
                 </button>
               </div>
 
-              {/* Key Trust Metrics */}
+              {/* Metrics */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-16 max-w-4xl mx-auto border-t border-slate-800/80 mt-12">
                 <div className="text-center">
                   <div className="text-3xl font-extrabold text-amber-400 font-mono">450+ MW</div>
@@ -602,14 +783,14 @@ export default function App() {
             </div>
           </section>
 
-          {/* Global Partner Brands Marquee / Grid Section */}
+          {/* Partner Brands */}
           <section className="py-16 px-6 max-w-7xl mx-auto">
             <div className="text-center max-w-3xl mx-auto mb-12 space-y-3">
               <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-                {lang === 'ar' ? 'شراكات عالمية مع كبرى شركات الطاقة' : 'Global Partnerships With Industry Leaders'}
+                {lang === 'ar' ? 'شركاؤنا العالميون' : 'Global Partners'}
               </h2>
               <h3 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-                {lang === 'ar' ? 'العلامات التجارية المعتمدة التي نعتمد عليها' : 'Trusted Global Brands We Distribute & Install'}
+                {lang === 'ar' ? 'العلامات التجارية المعتمدة التي نعتمد عليها' : 'Trusted Global Brands We Distribute'}
               </h3>
             </div>
 
@@ -624,24 +805,18 @@ export default function App() {
             </div>
           </section>
 
-          {/* Engineering Leadership Section */}
+          {/* Engineers Contact Section */}
           <section className="py-20 px-6 max-w-7xl mx-auto bg-slate-100/60 dark:bg-slate-900/40 rounded-3xl my-8">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-4">
               <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
                 {lang === 'ar' ? 'القيادة والإدارة الهندسية' : 'Engineering Leadership'}
               </h2>
               <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-                {lang === 'ar' ? 'فريق الهندسة والإشراف المباشر' : 'Direct Engineering & Management Team'}
+                {lang === 'ar' ? 'فريق الهندسة والإشراف المباشر' : 'Direct Engineering Team'}
               </h3>
-              <p className="text-slate-600 dark:text-slate-400">
-                {lang === 'ar'
-                  ? 'تواصل مباشرة مع كبار المهندسين والاستشاريين لمناقشة متطلبات مشروعك وتوريد ألواح جينكو وأجهزة Deye.'
-                  : 'Get in direct touch with our senior engineers and consultants to discuss Jinko panels and Deye systems.'}
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-              {/* Engineer 1 */}
               <div className="glass-panel p-8 rounded-2xl space-y-6 text-center hover:border-amber-500/50 transition-all">
                 <div className="w-20 h-20 rounded-full energy-gradient text-white flex items-center justify-center text-2xl font-bold mx-auto shadow-lg shadow-amber-600/20">
                   م.م
@@ -649,7 +824,7 @@ export default function App() {
                 <div className="space-y-2">
                   <h4 className="text-2xl font-bold">{lang === 'ar' ? 'المهندس مالك حريبات' : 'Eng. Malek Hraibat'}</h4>
                   <p className="text-sm text-amber-600 dark:text-amber-400 font-semibold">
-                    {lang === 'ar' ? 'مدير مشاريع الطاقة المتجددة' : 'Renewable Energy Project Director'}
+                    {lang === 'ar' ? 'مدير مشاريع الطاقة المتجددة' : 'Project Director'}
                   </p>
                 </div>
                 <div className="pt-2 flex items-center justify-center gap-2 text-lg font-mono font-bold text-slate-800 dark:text-slate-200" dir="ltr">
@@ -657,26 +832,15 @@ export default function App() {
                   <span>0594345464</span>
                 </div>
                 <div className="pt-4 flex items-center gap-3">
-                  <a
-                    href="tel:0594345464"
-                    className="flex-1 py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Phone className="w-4 h-4" />
-                    <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
+                  <a href="tel:0594345464" className="flex-1 py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md flex items-center justify-center gap-2">
+                    <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
                   </a>
-                  <a
-                    href="https://wa.me/970594345464?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 py-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>واتساب</span>
+                  <a href="https://wa.me/970594345464?text=%Dالسلام%20عليكم" target="_blank" rel="noopener noreferrer" className="flex-1 py-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md flex items-center justify-center gap-2">
+                    <MessageCircle className="w-4 h-4" /> <span>واتساب</span>
                   </a>
                 </div>
               </div>
 
-              {/* Engineer 2 */}
               <div className="glass-panel p-8 rounded-2xl space-y-6 text-center hover:border-amber-500/50 transition-all">
                 <div className="w-20 h-20 rounded-full energy-gradient text-white flex items-center justify-center text-2xl font-bold mx-auto shadow-lg shadow-amber-600/20">
                   م.ع
@@ -692,21 +856,11 @@ export default function App() {
                   <span>0599973304</span>
                 </div>
                 <div className="pt-4 flex items-center gap-3">
-                  <a
-                    href="tel:0599973304"
-                    className="flex-1 py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <Phone className="w-4 h-4" />
-                    <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
+                  <a href="tel:0599973304" className="flex-1 py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md flex items-center justify-center gap-2">
+                    <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
                   </a>
-                  <a
-                    href="https://wa.me/970599973304?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 py-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md transition-all flex items-center justify-center gap-2"
-                  >
-                    <MessageCircle className="w-4 h-4" />
-                    <span>واتساب</span>
+                  <a href="https://wa.me/970599973304?text=%Dالسلام%20عليكم" target="_blank" rel="noopener noreferrer" className="flex-1 py-3 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md flex items-center justify-center gap-2">
+                    <MessageCircle className="w-4 h-4" /> <span>واتساب</span>
                   </a>
                 </div>
               </div>
@@ -765,7 +919,593 @@ export default function App() {
         </main>
       )}
 
-      {/* System BOM Generator Tab (NEW ADDITION) */}
+      {/* Quotation Builder & Printable Receipt Page */}
+      {activeTab === 'quotation-builder' && (
+        <main className="py-12 px-6 max-w-6xl mx-auto space-y-12">
+          <div className="text-center max-w-3xl mx-auto space-y-3 print:hidden">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-600 dark:text-amber-400 text-xs font-semibold">
+              <FileText className="w-4 h-4" />
+              <span>{lang === 'ar' ? 'أداة رسمية معتمدة للزبائن' : 'Official Client Quotation Generator'}</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight">
+              {lang === 'ar' ? 'إنشاء وطباعة عرض سعر رسمي للزبون' : 'Create & Print Official Customer Quotation'}
+            </h2>
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
+              {lang === 'ar'
+                ? 'إدارة الشروط والأحكام الرسمية المأخوذة من عروض الشركة مع إمكانية تعديلها أو إخفائها فورياً عند طباعة العرض.'
+                : 'Manage and customize official terms and conditions.'}
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Input Controls Form (Hidden on Print) */}
+            <div className="lg:col-span-5 glass-panel p-6 rounded-2xl space-y-6 print:hidden">
+              <h4 className="text-base font-bold border-b border-slate-200 dark:border-slate-800 pb-3 flex items-center justify-between">
+                <span>{lang === 'ar' ? 'إعدادات عرض السعر والشروط' : 'Quotation & Terms Settings'}</span>
+                <button
+                  onClick={() => window.print()}
+                  className="px-3 py-1.5 text-xs font-bold text-white energy-gradient rounded-lg shadow flex items-center gap-1.5"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>{lang === 'ar' ? 'طباعة العرض' : 'Print Proposal'}</span>
+                </button>
+              </h4>
+
+              <div className="space-y-4 text-xs">
+                {/* Currency, Line Prices & Terms Toggles */}
+                <div className="grid grid-cols-3 gap-2 bg-amber-500/10 p-3 rounded-xl border border-amber-500/30">
+                  <div className="space-y-1">
+                    <label className="font-bold">{lang === 'ar' ? 'العملة:' : 'Currency:'}</label>
+                    <select
+                      value={quotation.currency}
+                      onChange={(e) => setQuotation({ ...quotation, currency: e.target.value })}
+                      className="w-full p-2 rounded-lg border border-amber-500 bg-white dark:bg-slate-900 font-bold text-xs"
+                    >
+                      <option value="USD">USD ($)</option>
+                      <option value="ILS">ILS (₪)</option>
+                      <option value="JOD">JOD (JD)</option>
+                      <option value="EUR">EUR (€)</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1 flex flex-col justify-between">
+                    <label className="font-bold">{lang === 'ar' ? 'أسعار القطع:' : 'Line Prices:'}</label>
+                    <button
+                      onClick={() => setQuotation({ ...quotation, showLinePrices: !quotation.showLinePrices })}
+                      className={`w-full py-2 px-2 rounded-lg font-bold text-[11px] transition-colors ${quotation.showLinePrices ? 'bg-amber-500 text-white' : 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-200'}`}
+                    >
+                      {quotation.showLinePrices ? (lang === 'ar' ? 'إظهار' : 'Show') : (lang === 'ar' ? 'إخفاء' : 'Hide')}
+                    </button>
+                  </div>
+
+                  <div className="space-y-1 flex flex-col justify-between">
+                    <label className="font-bold">{lang === 'ar' ? 'الشروط:' : 'Terms:'}</label>
+                    <button
+                      onClick={() => setQuotation({ ...quotation, showTerms: !quotation.showTerms })}
+                      className={`w-full py-2 px-2 rounded-lg font-bold text-[11px] transition-colors ${quotation.showTerms ? 'bg-emerald-600 text-white' : 'bg-slate-300 dark:bg-slate-700 text-slate-800 dark:text-slate-200'}`}
+                    >
+                      {quotation.showTerms ? (lang === 'ar' ? 'إظهار الشروط' : 'Show Terms') : (lang === 'ar' ? 'إخفاء الشروط' : 'Hide Terms')}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Client Info */}
+                <div className="space-y-2">
+                  <label className="font-semibold">{lang === 'ar' ? 'اسم الزبون / المنشأة:' : 'Client Name:'}</label>
+                  <input
+                    type="text"
+                    value={quotation.clientName}
+                    onChange={(e) => setQuotation({ ...quotation, clientName: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="font-semibold">{lang === 'ar' ? 'رقم الهاتف:' : 'Phone:'}</label>
+                    <input
+                      type="text"
+                      value={quotation.clientPhone}
+                      onChange={(e) => setQuotation({ ...quotation, clientPhone: e.target.value })}
+                      className="w-full p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="font-semibold">{lang === 'ar' ? 'العنوان:' : 'Address:'}</label>
+                    <input
+                      type="text"
+                      value={quotation.clientAddress}
+                      onChange={(e) => setQuotation({ ...quotation, clientAddress: e.target.value })}
+                      className="w-full p-2 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                    />
+                  </div>
+                </div>
+
+                {/* Inverter Specs */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2 border border-slate-200 dark:border-slate-800">
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{lang === 'ar' ? '1. جهاز العاكس (Inverter):' : '1. Inverter:'}</span>
+                  <input
+                    type="text"
+                    value={quotation.inverterName}
+                    onChange={(e) => setQuotation({ ...quotation, inverterName: e.target.value })}
+                    placeholder="اسم الجهاز والمواصفات"
+                    className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" value={quotation.inverterWarranty} onChange={(e) => setQuotation({ ...quotation, inverterWarranty: e.target.value })} placeholder="الكفالة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px]" />
+                    <input type="number" value={quotation.inverterQty} onChange={(e) => setQuotation({ ...quotation, inverterQty: Number(e.target.value) })} placeholder="العدد" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                    <input type="number" value={quotation.inverterPrice} onChange={(e) => setQuotation({ ...quotation, inverterPrice: Number(e.target.value) })} placeholder="السعر" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                  </div>
+                </div>
+
+                {/* Battery Specs */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2 border border-slate-200 dark:border-slate-800">
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{lang === 'ar' ? '2. البطاريات ونظام التخزين (BESS):' : '2. Batteries:'}</span>
+                  <input
+                    type="text"
+                    value={quotation.batteryName}
+                    onChange={(e) => setQuotation({ ...quotation, batteryName: e.target.value })}
+                    placeholder="نوع ومواصفات البطارية"
+                    className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" value={quotation.batteryWarranty} onChange={(e) => setQuotation({ ...quotation, batteryWarranty: e.target.value })} placeholder="الكفالة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px]" />
+                    <input type="number" value={quotation.batteryQty} onChange={(e) => setQuotation({ ...quotation, batteryQty: Number(e.target.value) })} placeholder="العدد" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                    <input type="number" value={quotation.batteryPrice} onChange={(e) => setQuotation({ ...quotation, batteryPrice: Number(e.target.value) })} placeholder="السعر" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                  </div>
+                </div>
+
+                {/* Solar Panels Specs */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2 border border-slate-200 dark:border-slate-800">
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{lang === 'ar' ? '3. الألواح الشمسية (Jinko Solar):' : '3. Solar Panels:'}</span>
+                  <input
+                    type="text"
+                    value={quotation.panelName}
+                    onChange={(e) => setQuotation({ ...quotation, panelName: e.target.value })}
+                    placeholder="نوع ومواصفات اللوح"
+                    className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" value={quotation.panelWarranty} onChange={(e) => setQuotation({ ...quotation, panelWarranty: e.target.value })} placeholder="الكفالة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px]" />
+                    <input type="number" value={quotation.panelQty} onChange={(e) => setQuotation({ ...quotation, panelQty: Number(e.target.value) })} placeholder="العدد" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                    <input type="number" value={quotation.panelPrice} onChange={(e) => setQuotation({ ...quotation, panelPrice: Number(e.target.value) })} placeholder="سعر القطعة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                  </div>
+                </div>
+
+                {/* Mounting Structure */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2 border border-slate-200 dark:border-slate-800">
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{lang === 'ar' ? '4. الهياكل والحديد (Mounting):' : '4. Structures:'}</span>
+                  <input
+                    type="text"
+                    value={quotation.structureName}
+                    onChange={(e) => setQuotation({ ...quotation, structureName: e.target.value })}
+                    placeholder="مواصفات الحديد والهياكل"
+                    className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" value={quotation.structureWarranty} onChange={(e) => setQuotation({ ...quotation, structureWarranty: e.target.value })} placeholder="الكفالة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px]" />
+                    <input type="number" value={quotation.structureQty} onChange={(e) => setQuotation({ ...quotation, structureQty: Number(e.target.value) })} placeholder="العدد/طقم" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                    <input type="number" value={quotation.structurePrice} onChange={(e) => setQuotation({ ...quotation, structurePrice: Number(e.target.value) })} placeholder="السعر" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                  </div>
+                </div>
+
+                {/* Protection & Breakers */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2 border border-slate-200 dark:border-slate-800">
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{lang === 'ar' ? '5. القواطع والأسلاك والحماية:' : '5. Protection:'}</span>
+                  <input
+                    type="text"
+                    value={quotation.protectionName}
+                    onChange={(e) => setQuotation({ ...quotation, protectionName: e.target.value })}
+                    placeholder="مواصفات القواطع والأسلاك"
+                    className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" value={quotation.protectionWarranty} onChange={(e) => setQuotation({ ...quotation, protectionWarranty: e.target.value })} placeholder="الكفالة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px]" />
+                    <input type="number" value={quotation.protectionQty} onChange={(e) => setQuotation({ ...quotation, protectionQty: Number(e.target.value) })} placeholder="العدد" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                    <input type="number" value={quotation.protectionPrice} onChange={(e) => setQuotation({ ...quotation, protectionPrice: Number(e.target.value) })} placeholder="السعر" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                  </div>
+                </div>
+
+                {/* ADD CUSTOM ITEM SECTION (e.g. ATS Breakers) */}
+                <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                    {lang === 'ar' ? 'إضافة عنصر جديد (مثل قواطع ATS):' : 'Add Custom Item (e.g. ATS):'}
+                  </span>
+                  <input
+                    type="text"
+                    value={newCustomName}
+                    onChange={(e) => setNewCustomName(e.target.value)}
+                    placeholder={lang === 'ar' ? 'اسم العنصر (مثال: قواطع ATS 100A)' : 'Item name'}
+                    className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" value={newCustomWarranty} onChange={(e) => setNewCustomWarranty(e.target.value)} placeholder="الكفالة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px]" />
+                    <input type="number" value={newCustomQty} onChange={(e) => setNewCustomQty(Number(e.target.value))} placeholder="العدد" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                    <input type="number" value={newCustomPrice} onChange={(e) => setNewCustomPrice(Number(e.target.value))} placeholder="السعر" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                  </div>
+                  <button
+                    onClick={addCustomItem}
+                    className="w-full py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{lang === 'ar' ? 'إضافة لعرض السعر' : 'Add Item'}</span>
+                  </button>
+
+                  {customItems.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-emerald-500/20">
+                      {customItems.map((ci) => (
+                        <div key={ci.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 text-[11px]">
+                          <span>{ci.name} ({ci.qty})</span>
+                          <button onClick={() => removeCustomItem(ci.id)} className="text-rose-500 hover:text-rose-700">
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Terms and Conditions Editor */}
+                <div className="space-y-2">
+                  <label className="font-semibold">{lang === 'ar' ? 'نص الشروط والأحكام الرسمية:' : 'Terms & Conditions Text:'}</label>
+                  <textarea
+                    rows={6}
+                    value={quotation.termsText}
+                    onChange={(e) => setQuotation({ ...quotation, termsText: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-[11px] leading-relaxed resize-y font-normal"
+                  />
+                </div>
+
+                {/* Discount & Total */}
+                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold">{lang === 'ar' ? 'قيمة الخصم:' : 'Discount:'}</span>
+                    <input
+                      type="number"
+                      value={quotation.discount}
+                      onChange={(e) => setQuotation({ ...quotation, discount: Number(e.target.value) })}
+                      className="w-24 p-1.5 rounded border border-amber-500 bg-white dark:bg-slate-950 font-mono font-bold text-center text-xs"
+                    />
+                  </div>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Official Printable Quotation Document View */}
+            <div className="lg:col-span-7 bg-white text-slate-900 p-8 md:p-12 rounded-3xl shadow-2xl border border-slate-300 print:shadow-none print:border-none print:w-full space-y-8" id="printable-quotation">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b-2 border-slate-900 pb-6">
+                <div className="flex items-center gap-4">
+                  <img
+                    src="/assets/aistudio/Rawafed_Renewable_Energy_Logo_614c1e0c.png"
+                    alt="Logo"
+                    className="w-16 h-16 object-contain rounded-xl"
+                    referrerPolicy="no-referrer"
+                  />
+                  <div>
+                    <h3 className="text-xl font-extrabold tracking-tight">
+                      {lang === 'ar' ? 'شركة روافد لحلول الطاقة' : 'Rawafid Energy Solutions'}
+                    </h3>
+                    <p className="text-xs text-slate-600">
+                      {lang === 'ar' ? 'أنظمة الطاقة الكهروضوئية وتخزين الطاقة • وكلاء Deye & Jinko' : 'Solar & BESS Systems • Authorized Distributors'}
+                    </p>
+                    <p className="text-[11px] font-mono font-bold text-amber-700 mt-1">
+                      {lang === 'ar' ? 'إدارة: م. مالك حريبات (0594345464) • م. عز الدين بدارين (0599973304)' : 'Eng. Malek (0594345464) • Eng. Ezzaddin (0599973304)'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="text-left font-mono text-xs space-y-1">
+                  <div className="text-sm font-extrabold text-amber-700">{lang === 'ar' ? 'عرض سعر رسمي' : 'OFFICIAL QUOTATION'}</div>
+                  <div>{lang === 'ar' ? 'التاريخ:' : 'Date:'} {quotation.issueDate}</div>
+                  <div>{lang === 'ar' ? 'صالح لغاية:' : 'Valid Until:'} {quotation.validUntil}</div>
+                  <div className="text-emerald-700 font-bold">{lang === 'ar' ? 'العملة:' : 'Currency:'} {quotation.currency}</div>
+                </div>
+              </div>
+
+              {/* Client Details */}
+              <div className="grid grid-cols-2 gap-4 bg-slate-100 p-4 rounded-xl text-xs">
+                <div>
+                  <span className="font-bold text-slate-500">{lang === 'ar' ? 'إلى السادة / الزبون:' : 'Client:'}</span>
+                  <div className="text-sm font-extrabold text-slate-900 mt-0.5">{quotation.clientName}</div>
+                </div>
+                <div>
+                  <span className="font-bold text-slate-500">{lang === 'ar' ? 'رقم الهاتف / العنوان:' : 'Phone / Address:'}</span>
+                  <div className="text-sm font-bold text-slate-900 mt-0.5 font-mono">{quotation.clientPhone} — {quotation.clientAddress}</div>
+                </div>
+              </div>
+
+              {/* Items Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-slate-900 text-slate-700">
+                      <th className="py-3 px-2">{lang === 'ar' ? 'البند / المكون' : 'Item Description'}</th>
+                      <th className="py-3 px-2">{lang === 'ar' ? 'الكفالة' : 'Warranty'}</th>
+                      <th className="py-3 px-2 text-center">{lang === 'ar' ? 'الكمية' : 'Qty'}</th>
+                      {quotation.showLinePrices && (
+                        <th className="py-3 px-2 text-center">{lang === 'ar' ? 'السعر الإجمالي' : 'Total'}</th>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200">
+                    <tr>
+                      <td className="py-3 px-2 font-bold">
+                        <div>{lang === 'ar' ? '1. العاكس (Inverter):' : '1. Inverter:'}</div>
+                        <div className="text-slate-600 font-normal text-[11px]">{quotation.inverterName}</div>
+                      </td>
+                      <td className="py-3 px-2 font-semibold text-emerald-700">{quotation.inverterWarranty}</td>
+                      <td className="py-3 px-2 text-center font-mono">{quotation.inverterQty}</td>
+                      {quotation.showLinePrices && (
+                        <td className="py-3 px-2 text-center font-mono font-bold">
+                          {(quotation.inverterQty * quotation.inverterPrice * currencyMultiplier).toLocaleString()} {currencySymbol}
+                        </td>
+                      )}
+                    </tr>
+
+                    <tr>
+                      <td className="py-3 px-2 font-bold">
+                        <div>{lang === 'ar' ? '2. البطاريات (BESS):' : '2. Batteries:'}</div>
+                        <div className="text-slate-600 font-normal text-[11px]">{quotation.batteryName}</div>
+                      </td>
+                      <td className="py-3 px-2 font-semibold text-emerald-700">{quotation.batteryWarranty}</td>
+                      <td className="py-3 px-2 text-center font-mono">{quotation.batteryQty}</td>
+                      {quotation.showLinePrices && (
+                        <td className="py-3 px-2 text-center font-mono font-bold">
+                          {(quotation.batteryQty * quotation.batteryPrice * currencyMultiplier).toLocaleString()} {currencySymbol}
+                        </td>
+                      )}
+                    </tr>
+
+                    <tr>
+                      <td className="py-3 px-2 font-bold">
+                        <div>{lang === 'ar' ? '3. الألواح الشمسية (Jinko):' : '3. Solar Panels:'}</div>
+                        <div className="text-slate-600 font-normal text-[11px]">{quotation.panelName}</div>
+                      </td>
+                      <td className="py-3 px-2 font-semibold text-emerald-700">{quotation.panelWarranty}</td>
+                      <td className="py-3 px-2 text-center font-mono">{quotation.panelQty}</td>
+                      {quotation.showLinePrices && (
+                        <td className="py-3 px-2 text-center font-mono font-bold">
+                          {(quotation.panelQty * quotation.panelPrice * currencyMultiplier).toLocaleString()} {currencySymbol}
+                        </td>
+                      )}
+                    </tr>
+
+                    <tr>
+                      <td className="py-3 px-2 font-bold">
+                        <div>{lang === 'ar' ? '4. الهياكل والحديد:' : '4. Structure:'}</div>
+                        <div className="text-slate-600 font-normal text-[11px]">{quotation.structureName}</div>
+                      </td>
+                      <td className="py-3 px-2 font-semibold text-emerald-700">{quotation.structureWarranty}</td>
+                      <td className="py-3 px-2 text-center font-mono">{quotation.structureQty}</td>
+                      {quotation.showLinePrices && (
+                        <td className="py-3 px-2 text-center font-mono font-bold">
+                          {(quotation.structureQty * quotation.structurePrice * currencyMultiplier).toLocaleString()} {currencySymbol}
+                        </td>
+                      )}
+                    </tr>
+
+                    <tr>
+                      <td className="py-3 px-2 font-bold">
+                        <div>{lang === 'ar' ? '5. القواطع والحماية:' : '5. Protection:'}</div>
+                        <div className="text-slate-600 font-normal text-[11px]">{quotation.protectionName}</div>
+                      </td>
+                      <td className="py-3 px-2 font-semibold text-emerald-700">{quotation.protectionWarranty}</td>
+                      <td className="py-3 px-2 text-center font-mono">{quotation.protectionQty}</td>
+                      {quotation.showLinePrices && (
+                        <td className="py-3 px-2 text-center font-mono font-bold">
+                          {(quotation.protectionQty * quotation.protectionPrice * currencyMultiplier).toLocaleString()} {currencySymbol}
+                        </td>
+                      )}
+                    </tr>
+
+                    {/* Custom Extra Items (e.g. ATS) */}
+                    {customItems.map((ci, idx) => (
+                      <tr key={ci.id}>
+                        <td className="py-3 px-2 font-bold">
+                          <div>6.{idx + 1}. {ci.name}</div>
+                        </td>
+                        <td className="py-3 px-2 font-semibold text-emerald-700">{ci.warranty}</td>
+                        <td className="py-3 px-2 text-center font-mono">{ci.qty}</td>
+                        {quotation.showLinePrices && (
+                          <td className="py-3 px-2 text-center font-mono font-bold">
+                            {(ci.qty * ci.price * currencyMultiplier).toLocaleString()} {currencySymbol}
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Financial Totals */}
+              <div className="border-t-2 border-slate-900 pt-4 space-y-2 text-xs">
+                <div className="flex justify-between">
+                  <span className="font-bold">{lang === 'ar' ? 'المجموع الفرعي:' : 'Subtotal:'}</span>
+                  <span className="font-mono font-bold">{subtotalQuotation.toLocaleString()} {currencySymbol}</span>
+                </div>
+                {quotation.discount > 0 && (
+                  <div className="flex justify-between text-rose-600">
+                    <span className="font-bold">{lang === 'ar' ? 'الخصم الخاص:' : 'Special Discount:'}</span>
+                    <span className="font-mono font-bold">-{(quotation.discount * currencyMultiplier).toLocaleString()} {currencySymbol}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-base font-extrabold border-t border-slate-300 pt-3 text-amber-700">
+                  <span>{lang === 'ar' ? 'المجموع النهائي المطلوب:' : 'Final Total:'}</span>
+                  <span className="font-mono">{totalQuotationAmount.toLocaleString()} {currencySymbol}</span>
+                </div>
+              </div>
+
+              {/* Terms and Conditions (Shown / Hidden or Edited) */}
+              {quotation.showTerms && (
+                <div className="bg-slate-50 p-4 rounded-xl text-[10px] space-y-2 text-slate-700 border border-slate-200">
+                  <span className="font-bold text-slate-900">{lang === 'ar' ? 'الشروط العامة والمحددات القانونية للفحص والتشغيل:' : 'Terms & Conditions:'}</span>
+                  <div className="whitespace-pre-wrap leading-relaxed">
+                    {quotation.termsText}
+                  </div>
+                </div>
+              )}
+
+              {/* Notes */}
+              <div className="p-3 rounded-lg bg-amber-500/10 text-[11px] text-amber-900 border border-amber-500/30">
+                <span className="font-bold">{lang === 'ar' ? 'آلية الدفع وملاحظات:' : 'Payment & Notes:'}</span> {quotation.paymentTerms} — {quotation.notes}
+              </div>
+
+              {/* Signatures */}
+              <div className="grid grid-cols-2 gap-8 pt-8 text-center text-xs">
+                <div className="space-y-8">
+                  <div className="font-bold">{lang === 'ar' ? 'توقيع وختم الشركة' : 'Company Stamp & Signature'}</div>
+                  <div className="border-t border-dashed border-slate-400 pt-2 text-[11px] text-slate-500">
+                    {lang === 'ar' ? 'شركة روافد لحلول الطاقة' : 'Rawafid Energy Solutions'}
+                  </div>
+                </div>
+                <div className="space-y-8">
+                  <div className="font-bold">{lang === 'ar' ? 'توقيع الزبون' : 'Client Signature'}</div>
+                  <div className="border-t border-dashed border-slate-400 pt-2 text-[11px] text-slate-500">
+                    {quotation.clientName}
+                  </div>
+                </div>
+              </div>
+
+              {/* Print Button at Bottom */}
+              <div className="pt-4 print:hidden text-center">
+                <button
+                  onClick={() => window.print()}
+                  className="px-8 py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-xl hover:opacity-95 transition-all flex items-center justify-center gap-2 mx-auto"
+                >
+                  <Printer className="w-5 h-5" />
+                  <span>{lang === 'ar' ? 'طباعة عرض السعر الرسمي للزبون' : 'Print Official Quotation PDF'}</span>
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* Shop Catalog Tab */}
+      {activeTab === 'shop' && (
+        <main className="py-16 px-6 max-w-7xl mx-auto space-y-12">
+          <div className="text-center max-w-3xl mx-auto space-y-4">
+            <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
+              {lang === 'ar' ? 'المتجر ومعرض المنتجات والأنظمة' : 'Products Catalog & Shop'}
+            </h2>
+            <h3 className="text-3xl md:text-5xl font-extrabold tracking-tight">
+              {lang === 'ar' ? 'أجهزة Deye، ألواح Jinko، واكسسوارات التركيب' : 'Deye, Jinko Panels & Accessories'}
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
+              {isAdminLoggedIn
+                ? (lang === 'ar' ? 'أنت مسجل الدخول كمشرف. يمكنك مشاهدة وتعديل الأسعار مباشرة.' : 'Logged in as Admin. You can view and edit prices.')
+                : (lang === 'ar' ? 'استعرض المنتجات وأضفها لقائمة الاستفسار، أو سجل دخول المهندسين لمشاهدة وتعديل الأسعار.' : 'Browse products and add to inquiry list, or login as admin to edit prices.')}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-6">
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setShopCategory('all')}
+                className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${shopCategory === 'all' ? 'energy-gradient text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              >
+                {lang === 'ar' ? 'جميع المنتجات' : 'All Products'}
+              </button>
+              <button
+                onClick={() => setShopCategory('deye')}
+                className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${shopCategory === 'deye' ? 'energy-gradient text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              >
+                {lang === 'ar' ? 'أجهزة Deye والبطاريات' : 'Deye Inverters & BESS'}
+              </button>
+              <button
+                onClick={() => setShopCategory('jinko')}
+                className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${shopCategory === 'jinko' ? 'energy-gradient text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              >
+                {lang === 'ar' ? 'ألواح Jinko (كل المقاسات)' : 'Jinko Solar Panels'}
+              </button>
+              <button
+                onClick={() => setShopCategory('accessories')}
+                className={`px-4 py-2 text-xs font-semibold rounded-xl transition-all ${shopCategory === 'accessories' ? 'energy-gradient text-white shadow-md' : 'bg-slate-100 dark:bg-slate-900 text-slate-600 dark:text-slate-400 hover:bg-slate-200'}`}
+              >
+                {lang === 'ar' ? 'اكسسوارات وقواطع وأسلاك' : 'Accessories & Breakers'}
+              </button>
+            </div>
+
+            {isAdminLoggedIn && (
+              <div className="flex items-center gap-3 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-xl">
+                <span className="text-xs font-bold text-amber-600 dark:text-amber-400">
+                  {lang === 'ar' ? 'عرض الأسعار للعامة:' : 'Show Prices Publicly:'}
+                </span>
+                <button
+                  onClick={() => setShowPricesPublic(!showPricesPublic)}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all ${showPricesPublic ? 'bg-amber-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
+                >
+                  {showPricesPublic ? (lang === 'ar' ? 'مفعل (مرئي)' : 'Enabled') : (lang === 'ar' ? 'معطل (مخفي)' : 'Hidden')}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredProducts.map((product) => (
+              <div key={product.id} className="glass-panel rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col justify-between group">
+                <div>
+                  <div className="relative h-48 overflow-hidden bg-slate-900">
+                    <img
+                      src={product.image}
+                      alt={lang === 'ar' ? product.nameAr : product.nameEn}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute top-3 right-3 bg-slate-950/80 backdrop-blur-md text-amber-400 font-mono text-[10px] font-bold px-2.5 py-1 rounded-lg border border-slate-800">
+                      {product.category.toUpperCase()}
+                    </div>
+                  </div>
+
+                  <div className="p-6 space-y-3">
+                    <h4 className="text-base font-bold line-clamp-2">
+                      {lang === 'ar' ? product.nameAr : product.nameEn}
+                    </h4>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-3 leading-relaxed">
+                      {lang === 'ar' ? product.descAr : product.descEn}
+                    </p>
+
+                    {(isAdminLoggedIn || showPricesPublic) && (
+                      <div className="pt-2 flex items-center justify-between border-t border-slate-200 dark:border-slate-800">
+                        <span className="text-xs text-slate-500">{lang === 'ar' ? 'السعر التقديري:' : 'Est. Price:'}</span>
+                        {isAdminLoggedIn ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-amber-500 font-bold">$</span>
+                            <input
+                              type="number"
+                              value={product.price}
+                              onChange={(e) => handlePriceUpdate(product.id, Number(e.target.value))}
+                              className="w-24 p-1 text-xs font-mono font-bold rounded border border-amber-500 bg-slate-100 dark:bg-slate-900 text-center"
+                            />
+                          </div>
+                        ) : (
+                          <span className="text-base font-extrabold text-amber-500 font-mono">${product.price}</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="p-6 pt-0">
+                  <button
+                    onClick={() => addToCart(product)}
+                    className="w-full py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
+                  >
+                    <ShoppingCart className="w-4 h-4" />
+                    <span>{lang === 'ar' ? 'إضافة لقائمة الاستفسار وطلب السعر' : 'Add to Inquiry List'}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </main>
+      )}
+
+      {/* System BOM Generator Tab */}
       {activeTab === 'bom-generator' && (
         <main className="py-16 px-6 max-w-6xl mx-auto space-y-12">
           <div className="text-center max-w-3xl mx-auto space-y-4">
@@ -775,22 +1515,21 @@ export default function App() {
             <h3 className="text-3xl md:text-5xl font-extrabold tracking-tight">
               {lang === 'ar' ? 'حاسبة جدول الكميات ومواصفات النظام الشمسى' : 'Solar System Bill of Materials & Sizing Calculator'}
             </h3>
-            <p className="text-slate-600 dark:text-slate-400">
+            <p className="text-slate-600 dark:text-slate-400 text-sm">
               {lang === 'ar'
                 ? 'حدد السعة المطلوبة لمشروعك وقدرة ألواح Jinko، وسيقوم النظام تلقائياً بحساب جدول الكميات والمكونات الهندسية الدقيقة لإرسالها للمهندسين.'
-                : 'Select your target system capacity and Jinko panel wattage, and the system automatically computes exact BOM and hardware quantities.'}
+                : 'Select your target system capacity and Jinko panel wattage, and the system automatically computes exact BOM quantities.'}
             </p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Input Form */}
             <div className="lg:col-span-5 glass-panel p-8 rounded-2xl space-y-6">
               <h4 className="text-lg font-bold border-b border-slate-200 dark:border-slate-800 pb-4">
                 {lang === 'ar' ? 'معلمات تصميم النظام الشمسي' : 'System Design Parameters'}
               </h4>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <label className="text-sm font-semibold">
                   {lang === 'ar' ? 'سعة النظام المطلوبة (كيلوواط - kW)' : 'Target System Capacity (kW)'}
                 </label>
                 <div className="flex items-center gap-4">
@@ -803,14 +1542,14 @@ export default function App() {
                     onChange={(e) => setBomSystemKw(Number(e.target.value))}
                     className="w-full accent-amber-600 cursor-pointer"
                   />
-                  <span className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400 shrink-0">
+                  <span className="text-xl font-bold font-mono text-amber-600 shrink-0">
                     {bomSystemKw} kW
                   </span>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                <label className="text-sm font-semibold">
                   {lang === 'ar' ? 'قدرة لوح Jinko المفضل' : 'Preferred Jinko Panel Wattage'}
                 </label>
                 <select
@@ -818,207 +1557,11 @@ export default function App() {
                   onChange={(e) => setSelectedPanelWatt(Number(e.target.value))}
                   className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
                 >
-                  <option value={440}>{lang === 'ar' ? '440 واط (سكني)' : '440W Residential'}</option>
-                  <option value={580}>{lang === 'ar' ? '580 واط (تجاري)' : '580W Commercial'}</option>
-                  <option value={620}>{lang === 'ar' ? '620 واط (صناعي)' : '620W Industrial'}</option>
-                  <option value={650}>{lang === 'ar' ? '650 واط (محطات)' : '650W Utility'}</option>
-                  <option value={720}>{lang === 'ar' ? '720 واط ألترا (الجيل الجديد)' : '720W Ultra Bifacial'}</option>
-                </select>
-              </div>
-
-              <button
-                onClick={() => setActiveTab('contact')}
-                className="w-full py-3.5 text-xs font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2"
-              >
-                <Send className="w-4 h-4" />
-                <span>{lang === 'ar' ? 'طلب عرض سعر لهذه القائمة (BOM)' : 'Request Quote for this BOM'}</span>
-              </button>
-            </div>
-
-            {/* Computed BOM Output Table */}
-            <div className="lg:col-span-7 glass-panel p-8 rounded-2xl space-y-6 bg-slate-900 text-white border border-slate-800">
-              <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-                <h4 className="text-lg font-bold text-amber-400">
-                  {lang === 'ar' ? 'جدول الكميات والمكونات المقترحة (BOM)' : 'Generated Bill of Materials (BOM)'}
-                </h4>
-                <span className="text-xs bg-amber-500/10 text-amber-400 border border-amber-500/30 px-3 py-1 rounded-full font-mono">
-                  {bomSystemKw} kW SYSTEM
-                </span>
-              </div>
-
-              <div className="space-y-3 font-mono text-xs">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span>{lang === 'ar' ? 'ألواح Jinko Solar الشمسية' : 'Jinko Solar Panels'}</span>
-                  <span className="text-amber-400 font-bold">{totalPanelsCount} لوح ({selectedPanelWatt}W)</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span>{lang === 'ar' ? 'محفرات الطاقة (Inverter)' : 'Hybrid Inverter System'}</span>
-                  <span className="text-amber-400 font-bold">{recommendedInverter}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span>{lang === 'ar' ? 'سعة بطاريات التخزين (BESS)' : 'Recommended BESS Storage'}</span>
-                  <span className="text-amber-400 font-bold">~{recommendedBatteryKwh} kWh Lithium</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span>{lang === 'ar' ? 'هياكل التركيب (ألمنيوم)' : 'Aluminum Mounting Rails'}</span>
-                  <span className="text-amber-400 font-bold">{bomSystemKw} kW Structure Kit</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span>{lang === 'ar' ? 'أسلاك DC (6 مم²)' : 'DC Copper Cables (6mm²)'}</span>
-                  <span className="text-amber-400 font-bold">~{estimatedDcCableMeters} متر</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span>{lang === 'ar' ? 'موصلات MC4 أصلية' : 'MC4 Connectors Pairs'}</span>
-                  <span className="text-amber-400 font-bold">{mc4PairsCount} زوج</span>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
-                  <span>{lang === 'ar' ? 'حمايات الصواعق وقواطع DC/AC' : 'DC SPDs & Breakers'}</span>
-                  <span className="text-amber-400 font-bold">{dcSpdCount} صندوق حماية ({acBreakerAmps}A AC)</span>
-                </div>
-              </div>
-
-              <div className="text-[11px] text-slate-400 leading-relaxed border-t border-slate-800 pt-4">
-                {lang === 'ar'
-                  ? 'تم حساب هذه القائمة بدقة وفق المعايير الهندسية العالمية. يمكنك إرسال هذه القائمة مباشرة للمهندس مالك حريبات أو م. عز الدين بدارين عبر واتساب للحصول على عرض فني ومالي معتمد.'
-                  : 'Computed according to international engineering standards. Send this BOM directly to Eng. Malek or Eng. Ezzaddin via WhatsApp.'}
-              </div>
-            </div>
-          </div>
-        </main>
-      )}
-
-      {/* Products Catalog Tab (NO PRICES) */}
-      {activeTab === 'shop' && (
-        <main className="py-16 px-6 max-w-7xl mx-auto space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-4">
-            <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-              {lang === 'ar' ? 'معرض المنتجات والأنظمة الرسمية' : 'Official Products & Systems Catalog'}
-            </h2>
-            <h3 className="text-3xl md:text-5xl font-extrabold tracking-tight">
-              {lang === 'ar' ? 'استعرض أجهزة Deye، ألواح Jinko، واكسسوارات الطاقة' : 'Explore Deye Devices, Jinko Panels & Accessories'}
-            </h3>
-            <p className="text-slate-600 dark:text-slate-400">
-              {lang === 'ar'
-                ? 'منتجات أصلية معتمدة مع صور رسمية من الشركات المصنعة. أضف المنتجات لقائمة الاستفسار واطلب عرض سعر مخصص من المهندس مالك حريبات والمهندس عز الدين بدارين.'
-                : 'Official certified products with manufacturer imagery. Add items to your inquiry list and request a custom quote from Eng. Malek and Eng. Ezzaddin.'}
-            </p>
-          </div>
-
-          {/* Catalog Categories Filter */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <button
-              onClick={() => setShopCategory('all')}
-              className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors ${shopCategory === 'all' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-            >
-              {lang === 'ar' ? 'جميع المنتجات' : 'All Products'}
-            </button>
-            <button
-              onClick={() => setShopCategory('jinko')}
-              className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors ${shopCategory === 'jinko' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-            >
-              {lang === 'ar' ? 'ألواح Jinko (كل المقاسات 440-720W)' : 'Jinko Panels (440W-720W)'}
-            </button>
-            <button
-              onClick={() => setShopCategory('deye')}
-              className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors ${shopCategory === 'deye' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-            >
-              {lang === 'ar' ? 'أجهزة Deye الهجينة والبطاريات' : 'Deye Inverters & BESS'}
-            </button>
-            <button
-              onClick={() => setShopCategory('accessories')}
-              className={`px-4 py-2 text-xs font-medium rounded-lg transition-colors ${shopCategory === 'accessories' ? 'bg-amber-600 text-white shadow-sm' : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}`}
-            >
-              {lang === 'ar' ? 'اكسسوارات، قواطع وأسلاك' : 'Accessories, Breakers & Cables'}
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="glass-panel rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col group">
-                <div className="relative h-56 overflow-hidden bg-slate-900">
-                  <img
-                    src={product.image}
-                    alt={lang === 'ar' ? product.nameAr : product.nameEn}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute top-4 left-4 bg-amber-500 text-slate-950 font-bold text-[10px] px-2.5 py-1 rounded-md uppercase tracking-wider">
-                    {product.category}
-                  </div>
-                </div>
-                <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <h4 className="text-lg font-bold">{lang === 'ar' ? product.nameAr : product.nameEn}</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                      {lang === 'ar' ? product.descAr : product.descEn}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => addToCart(product)}
-                    className="w-full py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-md hover:opacity-95 transition-all flex items-center justify-center gap-2"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>{lang === 'ar' ? 'إضافة إلى قائمة الاستفسار وطلب السعر' : 'Add to Inquiry List'}</span>
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </main>
-      )}
-
-      {/* Savings Calculator Tab */}
-      {activeTab === 'calculator' && (
-        <main className="py-16 px-6 max-w-6xl mx-auto space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-4">
-            <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-              {lang === 'ar' ? 'حاسبة وفورات الطاقة الذكية' : 'Smart Energy Savings Calculator'}
-            </h2>
-            <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              {lang === 'ar' ? 'اكتشف حجم الوفر المالي لمنشأتك فوراً' : 'Discover Your Facility Financial Savings Instantly'}
-            </h3>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Input Controls */}
-            <div className="lg:col-span-6 glass-panel p-8 rounded-2xl space-y-6">
-              <h4 className="text-lg font-bold border-b border-slate-200 dark:border-slate-800 pb-4">
-                {lang === 'ar' ? 'بيانات المنشأة والاستهلاك' : 'Facility & Consumption Data'}
-              </h4>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  {lang === 'ar' ? 'قيمة الفاتورة الكهربائية الشهرية التقريبية ($)' : 'Approximate Monthly Electricity Bill ($)'}
-                </label>
-                <div className="flex items-center gap-4">
-                  <input
-                    type="range"
-                    min="2000"
-                    max="100000"
-                    step="1000"
-                    value={monthlyBill}
-                    onChange={(e) => setMonthlyBill(Number(e.target.value))}
-                    className="w-full accent-amber-600 cursor-pointer"
-                  />
-                  <span className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400 shrink-0">
-                    ${monthlyBill.toLocaleString()}
-                  </span>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                  {lang === 'ar' ? 'نوع المنشأة' : 'Facility Type'}
-                </label>
-                <select
-                  value={facilityType}
-                  onChange={(e) => setFacilityType(e.target.value)}
-                  className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="industrial">{lang === 'ar' ? 'مصنع / منشأة صناعية ثقيلة' : 'Industrial Factory / Heavy Plant'}</option>
-                  <option value="commercial">{lang === 'ar' ? 'مجمع تجاري / مول' : 'Commercial Mall / Complex'}</option>
-                  <option value="agricultural">{lang === 'ar' ? 'مشروع زراعي / مضخات مياه' : 'Agricultural / Irrigation Project'}</option>
-                  <option value="residential">{lang === 'ar' ? 'مجمع سكني / أبراج' : 'Residential Compound / Towers'}</option>
+                  <option value={440}>Jinko Tiger Neo 440W (Residential)</option>
+                  <option value={580}>Jinko Tiger Neo 580W (Commercial)</option>
+                  <option value={620}>Jinko Tiger Neo 620W (Industrial)</option>
+                  <option value={650}>Jinko Tiger Neo 650W (Utility)</option>
+                  <option value={720}>Jinko Tiger Neo 720W Ultra (Latest)</option>
                 </select>
               </div>
 
@@ -1026,38 +1569,50 @@ export default function App() {
                 onClick={() => setActiveTab('contact')}
                 className="w-full py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2"
               >
-                <span>{lang === 'ar' ? 'اطلب دراسة جدوى مفصلة لهذا النظام' : 'Request Detailed Feasibility Study'}</span>
+                <span>{lang === 'ar' ? 'اطلب اعتماد جدول الكميات (BOM) من المهندسين' : 'Request BOM Approval from Engineers'}</span>
                 <ArrowRight className={`w-4 h-4 ${lang === 'ar' ? 'rotate-180' : ''}`} />
               </button>
             </div>
 
-            {/* Calculated Results Display */}
-            <div className="lg:col-span-6 glass-panel p-8 rounded-2xl space-y-6 bg-slate-900 text-white border border-slate-800">
+            <div className="lg:col-span-7 glass-panel p-8 rounded-2xl space-y-6 bg-slate-900 text-white border border-slate-800">
               <div className="flex items-center justify-between border-b border-slate-800 pb-4">
                 <h4 className="text-lg font-bold text-amber-400">
-                  {lang === 'ar' ? 'النتائج المتوقعة للمنظومة المقترحة' : 'Estimated System Results'}
+                  {lang === 'ar' ? 'جدول المكونات الهندسية (BOM Output)' : 'Engineering BOM Output'}
                 </h4>
+                <span className="text-xs font-mono bg-amber-500/20 text-amber-400 px-2.5 py-1 rounded border border-amber-500/30">
+                  RAWAFID VERIFIED
+                </span>
               </div>
 
-              <div className="grid grid-cols-2 gap-6">
-                <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400">{lang === 'ar' ? 'السعة الشمسية المقترحة' : 'Recommended Solar Capacity'}</div>
-                  <div className="text-3xl font-extrabold text-amber-400 font-mono mt-2">{estimatedSystemSize} kW</div>
+              <div className="space-y-4 text-sm">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'عدد ألواح Jinko الشمسية المطلوبة:' : 'Required Jinko Solar Panels:'}</span>
+                  <span className="font-mono font-bold text-amber-400 text-base">{totalPanelsCount} {lang === 'ar' ? 'لوح' : 'Panels'} ({selectedPanelWatt}W)</span>
                 </div>
 
-                <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400">{lang === 'ar' ? 'الوفر السنوي المتوقع' : 'Projected Annual Savings'}</div>
-                  <div className="text-3xl font-extrabold text-amber-400 font-mono mt-2">${annualSavings.toLocaleString()}</div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'الانفيرتر المقترح (Deye Inverter):' : 'Recommended Deye Inverter:'}</span>
+                  <span className="font-mono font-bold text-amber-400 text-sm">{recommendedInverter}</span>
                 </div>
 
-                <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400">{lang === 'ar' ? 'فترة استرداد رأس المال' : 'ROI Payback Period'}</div>
-                  <div className="text-3xl font-extrabold text-amber-400 font-mono mt-2">{roiYears} {lang === 'ar' ? 'سنوات' : 'Years'}</div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'سعة تخزين البطاريات المقترحة (BESS):' : 'Recommended BESS Capacity:'}</span>
+                  <span className="font-mono font-bold text-amber-400 text-base">{recommendedBatteryKwh} kWh (Deye High Voltage)</span>
                 </div>
 
-                <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800">
-                  <div className="text-xs text-slate-400">{lang === 'ar' ? 'خفض انبعاثات الكربون السنوي' : 'Annual Carbon Offset'}</div>
-                  <div className="text-3xl font-extrabold text-amber-400 font-mono mt-2">{co2Offset} {lang === 'ar' ? 'طن' : 'Tons'}</div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'طول أسلاك DC الشمسية المقدر:' : 'Estimated DC Solar Cable Length:'}</span>
+                  <span className="font-mono font-bold text-amber-400 text-base">{estimatedDcCableMeters} Meters (6mm²)</span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'عدد أزواج موصلات MC4:' : 'MC4 Connectors Pairs:'}</span>
+                  <span className="font-mono font-bold text-amber-400 text-base">{mc4PairsCount} Pairs (IP68)</span>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800">
+                  <span>{lang === 'ar' ? 'أجهزة حماية الصواعق DC SPDs والقواطع:' : 'DC SPDs & Circuit Breakers:'}</span>
+                  <span className="font-mono font-bold text-amber-400 text-base">{dcSpdCount} Units (1000V) & {acBreakerAmps}A AC Breaker</span>
                 </div>
               </div>
             </div>
@@ -1074,7 +1629,7 @@ export default function App() {
               <span>{lang === 'ar' ? 'مدعوم بنموذج الذكاء الاصطناعي المتقدم' : 'Powered by Advanced Gemini AI'}</span>
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight">
-              {lang === 'ar' ? 'استشر مهندس الطاقة الذكي' : 'AI Energy Consultant & Proposal Generator'}
+              {lang === 'ar' ? 'استشر مهندس الطاقة الذكي' : 'AI Energy Consultant'}
             </h2>
           </div>
 
@@ -1130,47 +1685,83 @@ export default function App() {
         </main>
       )}
 
-      {/* Projects Portfolio Tab */}
-      {activeTab === 'projects' && (
-        <main className="py-16 px-6 max-w-7xl mx-auto space-y-12">
-          <div className="text-center max-w-3xl mx-auto space-y-4">
-            <h2 className="text-xs font-bold text-amber-600 dark:text-amber-400 uppercase tracking-widest">
-              {lang === 'ar' ? 'سجل إنجازاتنا' : 'Our Track Record'}
-            </h2>
-            <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              {lang === 'ar' ? 'مشاريع كبرى تنير مستقبل المنطقة' : 'Major Projects Powering the Region'}
-            </h3>
+      {/* Admin Panel Tab */}
+      {activeTab === 'admin' && isAdminLoggedIn && (
+        <main className="py-16 px-6 max-w-6xl mx-auto space-y-12">
+          <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-6">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+                {lang === 'ar' ? 'لوحة تحكم المهندسين المشرفين' : 'Engineers Admin Dashboard'}
+              </h2>
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold mt-1">
+                {lang === 'ar' ? 'إدارة الأسعار، المنتجات، وطلبات العملاء الواردة' : 'Manage pricing, products, and customer quote requests'}
+              </p>
+            </div>
+            <button
+              onClick={() => setActiveTab('home')}
+              className="px-4 py-2 text-xs font-bold rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+            >
+              {lang === 'ar' ? 'العودة للرئيسية' : 'Back to Home'}
+            </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {filteredProjects.map((project) => (
-              <div key={project.id} className="glass-panel rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-800 flex flex-col group">
-                <div className="relative h-64 overflow-hidden">
-                  <img
-                    src={project.image}
-                    alt={lang === 'ar' ? project.titleAr : project.titleEn}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    referrerPolicy="no-referrer"
-                  />
-                  <div className="absolute top-4 right-4 bg-slate-950/80 backdrop-blur-md text-amber-400 font-mono text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-800">
-                    {project.capacity}
-                  </div>
-                </div>
-                <div className="p-6 space-y-4 flex-1 flex flex-col justify-between">
-                  <div className="space-y-2">
-                    <h4 className="text-xl font-bold">{lang === 'ar' ? project.titleAr : project.titleEn}</h4>
-                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                      {lang === 'ar' ? project.descAr : project.descEn}
-                    </p>
-                  </div>
-                </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="glass-panel p-6 rounded-2xl space-y-2">
+              <div className="text-xs text-slate-500">{lang === 'ar' ? 'إجمالي المنتجات في الكتالوج' : 'Total Products'}</div>
+              <div className="text-3xl font-extrabold text-amber-500 font-mono">{products.length}</div>
+            </div>
+            <div className="glass-panel p-6 rounded-2xl space-y-2">
+              <div className="text-xs text-slate-500">{lang === 'ar' ? 'طلبات الاستشارات الواردة' : 'Inquiries & Leads'}</div>
+              <div className="text-3xl font-extrabold text-amber-500 font-mono">{inquiriesList.length}</div>
+            </div>
+            <div className="glass-panel p-6 rounded-2xl space-y-2">
+              <div className="text-xs text-slate-500">{lang === 'ar' ? 'المشرف الحالي' : 'Active Admin'}</div>
+              <div className="text-lg font-bold text-emerald-500">Eng. Malek & Ezzaddin</div>
+            </div>
+          </div>
+
+          <div className="glass-panel p-8 rounded-2xl space-y-6">
+            <h4 className="text-lg font-bold border-b border-slate-200 dark:border-slate-800 pb-4">
+              {lang === 'ar' ? 'سجل طلبات وعروض الأسعار الواردة من العملاء' : 'Customer Quote Requests & Inquiries'}
+            </h4>
+
+            {inquiriesList.length === 0 ? (
+              <p className="text-sm text-slate-500 text-center py-8">
+                {lang === 'ar' ? 'لا توجد طلبات جديدة حتى الآن.' : 'No inquiry requests submitted yet.'}
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="border-b border-slate-200 dark:border-slate-800 text-slate-500">
+                    <tr>
+                      <th className="p-3">{lang === 'ar' ? 'التاريخ' : 'Date'}</th>
+                      <th className="p-3">{lang === 'ar' ? 'اسم العميل' : 'Client Name'}</th>
+                      <th className="p-3">{lang === 'ar' ? 'الشركة' : 'Company'}</th>
+                      <th className="p-3">{lang === 'ar' ? 'الهاتف' : 'Phone'}</th>
+                      <th className="p-3">{lang === 'ar' ? 'البريد' : 'Email'}</th>
+                      <th className="p-3">{lang === 'ar' ? 'التفاصيل' : 'Details'}</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
+                    {inquiriesList.map((inq) => (
+                      <tr key={inq.id}>
+                        <td className="p-3 font-mono">{inq.date}</td>
+                        <td className="p-3 font-bold">{inq.name}</td>
+                        <td className="p-3">{inq.company}</td>
+                        <td className="p-3 font-mono">{inq.phone}</td>
+                        <td className="p-3">{inq.email}</td>
+                        <td className="p-3 text-slate-600 dark:text-slate-400">{inq.details}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            ))}
+            )}
           </div>
         </main>
       )}
 
-      {/* Contact & Quote Booking Tab */}
+      {/* Contact Tab */}
       {activeTab === 'contact' && (
         <main className="py-16 px-6 max-w-5xl mx-auto space-y-12">
           <div className="text-center space-y-3">
@@ -1178,11 +1769,10 @@ export default function App() {
               {lang === 'ar' ? 'تواصل معنا مباشرة' : 'Get In Touch Directly'}
             </h2>
             <h3 className="text-3xl md:text-4xl font-extrabold tracking-tight">
-              {lang === 'ar' ? 'ابدأ رحلة التحول نحو الطاقة النظيفة اليوم' : 'Start Your Clean Energy Transition Today'}
+              {lang === 'ar' ? 'ابدأ رحلة التحول نحو الطاقة النظيفة اليوم' : 'Start Your Clean Energy Transition'}
             </h3>
           </div>
 
-          {/* Engineers Direct Contact Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div className="glass-panel p-6 rounded-2xl space-y-4 text-center">
               <div className="w-16 h-16 rounded-full energy-gradient text-white flex items-center justify-center text-xl font-bold mx-auto">
@@ -1190,14 +1780,13 @@ export default function App() {
               </div>
               <div>
                 <h4 className="text-xl font-bold">{lang === 'ar' ? 'المهندس مالك حريبات' : 'Eng. Malek Hraibat'}</h4>
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">{lang === 'ar' ? 'مدير مشاريع الطاقة المتجددة' : 'Project Director'}</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">0594345464</p>
               </div>
-              <div className="text-lg font-mono font-bold" dir="ltr">0594345464</div>
               <div className="flex items-center gap-2">
-                <a href="tel:0594345464" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl">
+                <a href="tel:0594345464" className="flex-1 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl flex items-center justify-center gap-2">
                   <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
                 </a>
-                <a href="https://wa.me/970594345464?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية" target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl">
+                <a href="https://wa.me/970594345464?text=%Dالسلام%20عليكم" target="_blank" rel="noopener noreferrer" className="flex-1 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl flex items-center justify-center gap-2">
                   <MessageCircle className="w-4 h-4" /> <span>واتساب</span>
                 </a>
               </div>
@@ -1209,14 +1798,13 @@ export default function App() {
               </div>
               <div>
                 <h4 className="text-xl font-bold">{lang === 'ar' ? 'المهندس عز الدين بدارين' : 'Eng. Ezzaddin Badarin'}</h4>
-                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">{lang === 'ar' ? 'استشاري الأنظمة الكهروضوئية والشبكات الذكية' : 'Solar & Smart Grid Consultant'}</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-semibold">0599973304</p>
               </div>
-              <div className="text-lg font-mono font-bold" dir="ltr">0599973304</div>
               <div className="flex items-center gap-2">
-                <a href="tel:0599973304" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl">
+                <a href="tel:0599973304" className="flex-1 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl flex items-center justify-center gap-2">
                   <Phone className="w-4 h-4" /> <span>{lang === 'ar' ? 'اتصال' : 'Call'}</span>
                 </a>
-                <a href="https://wa.me/970599973304?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية" target="_blank" rel="noopener noreferrer" className="flex-1 inline-flex items-center justify-center gap-2 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl">
+                <a href="https://wa.me/970599973304?text=%Dالسلام%20عليكم" target="_blank" rel="noopener noreferrer" className="flex-1 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl flex items-center justify-center gap-2">
                   <MessageCircle className="w-4 h-4" /> <span>واتساب</span>
                 </a>
               </div>
@@ -1226,93 +1814,53 @@ export default function App() {
           <div className="glass-panel p-8 rounded-2xl">
             {quoteSubmitted ? (
               <div className="text-center py-12 space-y-4">
-                <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
                   <CheckCircle2 className="w-8 h-8" />
                 </div>
-                <h4 className="text-2xl font-bold">
-                  {lang === 'ar' ? 'تم استلام طلبك بنجاح!' : 'Proposal Request Received Successfully!'}
-                </h4>
+                <h4 className="text-2xl font-bold">{lang === 'ar' ? 'تم إرسال طلبك وتسجيله بنجاح!' : 'Request Submitted Successfully!'}</h4>
                 <p className="text-sm text-slate-600 dark:text-slate-400 max-w-md mx-auto">
-                  {lang === 'ar'
-                    ? 'سيتواصل معك م. مالك حريبات أو م. عز الدين بدارين خلال 24 ساعة.'
-                    : 'Eng. Malek or Eng. Ezzaddin will reach out within 24 hours.'}
+                  {lang === 'ar' ? 'سيتواصل معك م. مالك أو م. عز الدين في أقرب وقت.' : 'Eng. Malek or Eng. Ezzaddin will reach out shortly.'}
                 </p>
-                <button
-                  onClick={() => { setQuoteSubmitted(false); setActiveTab('home'); }}
-                  className="px-6 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl shadow-md"
-                >
+                <button onClick={() => { setQuoteSubmitted(false); setActiveTab('home'); }} className="px-6 py-2.5 text-xs font-bold text-white energy-gradient rounded-xl">
                   {lang === 'ar' ? 'العودة للرئيسية' : 'Back to Home'}
                 </button>
               </div>
             ) : (
               <form onSubmit={handleQuoteSubmit} className="space-y-4">
                 <h4 className="text-lg font-bold border-b border-slate-200 dark:border-slate-800 pb-4">
-                  {lang === 'ar' ? 'نموذج طلب عرض سعر أو استشارة' : 'Request Proposal or Consultation'}
+                  {lang === 'ar' ? 'نموذج طلب عرض سعر أو استشارة أو حجز زيارة ميدانية' : 'Request Proposal or Site Survey'}
                 </h4>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-xs font-semibold">{lang === 'ar' ? 'الاسم الكريم' : 'Full Name'}</label>
-                    <input
-                      required
-                      type="text"
-                      value={quoteForm.name}
-                      onChange={(e) => setQuoteForm({ ...quoteForm, name: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
+                    <input required type="text" value={quoteForm.name} onChange={(e) => setQuoteForm({ ...quoteForm, name: e.target.value })} className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold">{lang === 'ar' ? 'اسم الشركة / المنشأة' : 'Company Name'}</label>
-                    <input
-                      required
-                      type="text"
-                      value={quoteForm.company}
-                      onChange={(e) => setQuoteForm({ ...quoteForm, company: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
+                    <label className="text-xs font-semibold">{lang === 'ar' ? 'اسم الشركة / المنشأة' : 'Company'}</label>
+                    <input required type="text" value={quoteForm.company} onChange={(e) => setQuoteForm({ ...quoteForm, company: e.target.value })} className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm" />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold">{lang === 'ar' ? 'البريد الإلكتروني' : 'Email Address'}</label>
-                    <input
-                      required
-                      type="email"
-                      value={quoteForm.email}
-                      onChange={(e) => setQuoteForm({ ...quoteForm, email: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
+                    <label className="text-xs font-semibold">{lang === 'ar' ? 'البريد الإلكتروني' : 'Email'}</label>
+                    <input required type="email" value={quoteForm.email} onChange={(e) => setQuoteForm({ ...quoteForm, email: e.target.value })} className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm" />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-semibold">{lang === 'ar' ? 'رقم الهاتف' : 'Phone Number'}</label>
-                    <input
-                      required
-                      type="tel"
-                      value={quoteForm.phone}
-                      onChange={(e) => setQuoteForm({ ...quoteForm, phone: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
-                    />
+                    <label className="text-xs font-semibold">{lang === 'ar' ? 'رقم الهاتف' : 'Phone'}</label>
+                    <input required type="tel" value={quoteForm.phone} onChange={(e) => setQuoteForm({ ...quoteForm, phone: e.target.value })} className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm" />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <label className="text-xs font-semibold">{lang === 'ar' ? 'تفاصيل المشروع أو الاستفسار' : 'Project Details / Inquiry'}</label>
-                  <textarea
-                    rows={4}
-                    value={quoteForm.details}
-                    onChange={(e) => setQuoteForm({ ...quoteForm, details: e.target.value })}
-                    placeholder={lang === 'ar' ? 'أذكر تفاصيل منشأتك واستهلاكك الشهري...' : 'Mention facility details and monthly consumption...'}
-                    className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
-                  />
+                  <label className="text-xs font-semibold">{lang === 'ar' ? 'تفاصيل المشروع أو نوع النظام المطللوب' : 'Project Details'}</label>
+                  <textarea rows={4} value={quoteForm.details} onChange={(e) => setQuoteForm({ ...quoteForm, details: e.target.value })} placeholder="Jinko panels 720W & Deye inverter..." className="w-full p-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-sm resize-none" />
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2"
-                >
+                <button type="submit" className="w-full py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all flex items-center justify-center gap-2">
                   <Send className="w-4 h-4" />
-                  <span>{lang === 'ar' ? 'إرسال طلب الاستشارة' : 'Submit Consultation Request'}</span>
+                  <span>{lang === 'ar' ? 'إرسال الطلب للمهندسين' : 'Submit Request'}</span>
                 </button>
               </form>
             )}
@@ -1320,7 +1868,7 @@ export default function App() {
         </main>
       )}
 
-      {/* Inquiry List Modal (No Prices) */}
+      {/* Inquiry List Modal */}
       {isCartOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-end p-4">
           <div className="w-full max-w-md h-full bg-white dark:bg-slate-900 shadow-2xl flex flex-col rounded-2xl overflow-hidden animate-in slide-in-from-right duration-300">
@@ -1337,20 +1885,15 @@ export default function App() {
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {checkoutSubmitted ? (
                 <div className="text-center py-16 space-y-4">
-                  <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 flex items-center justify-center mx-auto">
+                  <div className="w-16 h-16 rounded-full bg-amber-500/10 text-amber-600 flex items-center justify-center mx-auto">
                     <CheckCircle2 className="w-8 h-8" />
                   </div>
                   <h4 className="text-xl font-bold">{lang === 'ar' ? 'تم إرسال قائمة الاستفسار بنجاح!' : 'Inquiry List Submitted!'}</h4>
                   <p className="text-xs text-slate-600 dark:text-slate-400">
-                    {lang === 'ar'
-                      ? 'سيتواصل معك م. مالك حريبات أو م. عز الدين بدارين لتزويدك بعرض السعر الفني المخصص للأنظمة المحددة.'
-                      : 'Eng. Malek or Eng. Ezzaddin will contact you with a customized technical quotation.'}
+                    {lang === 'ar' ? 'سيتواصل معك م. مالك أو م. عز الدين لتزويدك بعرض السعر.' : 'Eng. Malek or Eng. Ezzaddin will contact you.'}
                   </p>
-                  <button
-                    onClick={() => { setCart([]); setCheckoutSubmitted(false); setIsCartOpen(false); }}
-                    className="px-5 py-2 text-xs font-bold text-white energy-gradient rounded-xl"
-                  >
-                    {lang === 'ar' ? 'إغلاق القائمة' : 'Close List'}
+                  <button onClick={() => { setCart([]); setCheckoutSubmitted(false); setIsCartOpen(false); }} className="px-5 py-2 text-xs font-bold text-white energy-gradient rounded-xl">
+                    {lang === 'ar' ? 'إغلاق' : 'Close'}
                   </button>
                 </div>
               ) : cart.length === 0 ? (
@@ -1365,13 +1908,16 @@ export default function App() {
                       <div key={item.id} className="flex items-center justify-between p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950">
                         <div className="space-y-1">
                           <h5 className="text-xs font-bold">{lang === 'ar' ? item.nameAr : item.nameEn}</h5>
+                          {isAdminLoggedIn && item.price && (
+                            <span className="text-xs font-mono text-amber-500 font-bold">${item.price * item.quantity}</span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
-                          <button onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300">
+                          <button onClick={() => updateQuantity(item.id, -1)} className="p-1 rounded bg-slate-200 dark:bg-slate-800">
                             <Minus className="w-3.5 h-3.5" />
                           </button>
                           <span className="text-xs font-mono font-bold w-6 text-center">{item.quantity}</span>
-                          <button onClick={() => updateQuantity(item.id, 1)} className="p-1 rounded bg-slate-200 dark:bg-slate-800 hover:bg-slate-300">
+                          <button onClick={() => updateQuantity(item.id, 1)} className="p-1 rounded bg-slate-200 dark:bg-slate-800">
                             <Plus className="w-3.5 h-3.5" />
                           </button>
                         </div>
@@ -1382,9 +1928,9 @@ export default function App() {
                   <div className="border-t border-slate-200 dark:border-slate-800 pt-4 space-y-4">
                     <button
                       onClick={() => setCheckoutSubmitted(true)}
-                      className="w-full py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-lg hover:opacity-95 transition-all"
+                      className="w-full py-3 text-xs font-bold text-white energy-gradient rounded-xl shadow-lg"
                     >
-                      {lang === 'ar' ? 'إرسال القائمة للمهندسين (طلب عرض سعر)' : 'Send List to Engineers (Request Quote)'}
+                      {lang === 'ar' ? 'إرسال القائمة للمهندسين' : 'Send List to Engineers'}
                     </button>
                   </div>
                 </>
@@ -1394,118 +1940,43 @@ export default function App() {
         </div>
       )}
 
-      {/* Floating WhatsApp Action Button */}
-      <div className="fixed bottom-6 right-6 z-50">
-        {isWhatsAppOpen && (
-          <div className="absolute bottom-16 right-0 w-72 glass-panel rounded-2xl p-4 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-3 mb-2 animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-              <span className="font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                {lang === 'ar' ? 'تواصل مع فريق الهندسة عبر واتساب' : 'Chat with Engineers via WhatsApp'}
-              </span>
-              <button onClick={() => setIsWhatsAppOpen(false)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <div className="space-y-2">
-              <a
-                href="https://wa.me/970594345464?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية%20وأجهزة%20Deye"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
-              >
-                <div className="font-bold text-xs text-emerald-800 dark:text-emerald-300">
-                  {lang === 'ar' ? 'م. مالك حريبات' : 'Eng. Malek Hraibat'}
-                </div>
-                <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400" dir="ltr">0594345464</div>
-              </a>
-
-              <a
-                href="https://wa.me/970599973304?text=%Dالسلام%20عليكم%2C%20أرغب%20بالاستفسار%20عن%20أنظمة%20الطاقة%20الشمسية%20وأجهزة%20Deye"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100 transition-colors"
-              >
-                <div className="font-bold text-xs text-emerald-800 dark:text-emerald-300">
-                  {lang === 'ar' ? 'م. عز الدين بدارين' : 'Eng. Ezzaddin Badarin'}
-                </div>
-                <div className="text-[11px] font-mono text-slate-600 dark:text-slate-400" dir="ltr">0599973304</div>
-              </a>
-            </div>
-          </div>
-        )}
-
+      {/* WhatsApp Floating Button */}
+      <div className="fixed bottom-6 right-6 z-50 print:hidden">
         <button
-          onClick={() => setIsWhatsAppOpen(!isWhatsAppOpen)}
-          className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl flex items-center justify-center transition-all hover:scale-105 group relative"
-          title="Chat on WhatsApp"
+          onClick={() => window.open('https://wa.me/970594345464?text=%Dالسلام%20عليكم', '_blank')}
+          className="w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white shadow-2xl flex items-center justify-center transition-all hover:scale-105"
         >
           <MessageCircle className="w-7 h-7" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-[10px] font-bold text-white flex items-center justify-center animate-pulse">
-            2
-          </span>
         </button>
       </div>
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-12 px-6 mt-20">
+      <footer className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 py-12 px-6 mt-20 print:hidden">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="space-y-4">
             <div className="flex items-center gap-3">
-              <img
-                src="/assets/aistudio/Rawafed_Renewable_Energy_Logo_614c1e0c.png"
-                alt="Logo"
-                className="w-8 h-8 object-contain rounded-lg"
-                referrerPolicy="no-referrer"
-              />
-              <span className="font-bold text-base">
-                {lang === 'ar' ? 'شركة روافد لحلول الطاقة' : 'Rawafid Energy Solutions'}
-              </span>
+              <img src="/assets/aistudio/Rawafed_Renewable_Energy_Logo_614c1e0c.png" alt="Logo" className="w-8 h-8 object-contain rounded-lg" referrerPolicy="no-referrer" />
+              <span className="font-bold text-base">{lang === 'ar' ? 'شركة روافد لحلول الطاقة' : 'Rawafid Energy Solutions'}</span>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-              {lang === 'ar'
-                ? 'إدارة: م. مالك حريبات (0594345464) • م. عز الدين بدارين (0599973304)'
-                : 'Managed by: Eng. Malek Hraibat (0594345464) • Eng. Ezzaddin Badarin (0599973304)'}
+            <p className="text-xs text-slate-500">
+              {lang === 'ar' ? 'إدارة: م. مالك حريبات (0594345464) • م. عز الدين بدارين (0599973304)' : 'Managed by: Eng. Malek & Eng. Ezzaddin'}
             </p>
           </div>
-
           <div className="space-y-3">
             <h5 className="text-sm font-bold">{lang === 'ar' ? 'روابط سريعة' : 'Quick Links'}</h5>
             <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
               <li><button onClick={() => setActiveTab('home')} className="hover:text-amber-600">{lang === 'ar' ? 'الرئيسية' : 'Home'}</button></li>
-              <li><button onClick={() => setActiveTab('shop')} className="hover:text-amber-600">{lang === 'ar' ? 'معرض المنتجات' : 'Products Catalog'}</button></li>
-              <li><button onClick={() => setActiveTab('bom-generator')} className="hover:text-amber-600">{lang === 'ar' ? 'حاسبة المكونات (BOM)' : 'System BOM Calculator'}</button></li>
-              <li><button onClick={() => setActiveTab('contact')} className="hover:text-amber-600">{lang === 'ar' ? 'اتصل بنا' : 'Contact'}</button></li>
+              <li><button onClick={() => setActiveTab('quotation-builder')} className="hover:text-amber-600">{lang === 'ar' ? 'منشئ عروض الأسعار' : 'Quotation Builder'}</button></li>
+              <li><button onClick={() => setActiveTab('shop')} className="hover:text-amber-600">{lang === 'ar' ? 'معرض المنتجات' : 'Products'}</button></li>
             </ul>
           </div>
-
           <div className="space-y-3">
-            <h5 className="text-sm font-bold">{lang === 'ar' ? 'العلامات التجارية المعتمدة' : 'Authorized Brands'}</h5>
-            <ul className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
-              <li><span>Jinko Solar Panels (440W - 720W)</span></li>
-              <li><span>Deye Inverters & BESS</span></li>
-              <li><span>Sungrow & Huawei Solar</span></li>
-              <li><span>Schneider Breakers & Accessories</span></li>
-            </ul>
+            <h5 className="text-sm font-bold">{lang === 'ar' ? 'الاعتمادات' : 'Certifications'}</h5>
+            <p className="text-xs text-slate-500">Jinko Tiger Neo • Deye Hybrid Inverters • ISO 9001</p>
           </div>
-
           <div className="space-y-3">
-            <h5 className="text-sm font-bold">{lang === 'ar' ? 'الاعتمادات والمعايير' : 'Certifications & Compliance'}</h5>
-            <div className="flex flex-wrap gap-2">
-              <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 rounded">ISO 9001</span>
-              <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 rounded">ISO 14001</span>
-              <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 rounded">IEC Certified</span>
-              <span className="text-[10px] font-mono bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 px-2 py-1 rounded">IEEE Standards</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto border-t border-slate-200 dark:border-slate-800 mt-12 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 dark:text-slate-400">
-          <p>© {new Date().getFullYear()} {lang === 'ar' ? 'شركة روافد لحلول الطاقة. جميع الحقوق محفوظة.' : 'Rawafid Energy Solutions. All rights reserved.'}</p>
-          <div className="flex items-center gap-4 mt-4 sm:mt-0">
-            <span>{lang === 'ar' ? 'الخصوصية والأمان' : 'Privacy & Security'}</span>
-            <span>·</span>
-            <span>{lang === 'ar' ? 'الشروط والأحكام' : 'Terms & Conditions'}</span>
+            <h5 className="text-sm font-bold">{lang === 'ar' ? 'تواصل معنا' : 'Contact'}</h5>
+            <p className="text-xs text-slate-500 font-mono">0594345464 / 0599973304</p>
           </div>
         </div>
       </footer>
