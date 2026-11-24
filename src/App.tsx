@@ -133,6 +133,12 @@ export default function App() {
     protectionQty: 1,
     protectionPrice: 950,
 
+    // Labor & Engineering Wages
+    laborName: 'أجور التركيب وفريق المهندسين والفحص والتشغيل',
+    laborWarranty: 'كفالة تركيب وتشغيل',
+    laborQty: 1,
+    laborPrice: 1500,
+
     // Financials & Terms from PDF
     discount: 500,
     paymentTerms: 'الدفع نقدا / حسب الاتفاق',
@@ -176,6 +182,61 @@ export default function App() {
 
   const removeCustomItem = (id: number) => {
     setCustomItems(prev => prev.filter(item => item.id !== id));
+  };
+
+  // Saved Quotation Templates State
+  const [savedTemplates, setSavedTemplates] = useState<any[]>([
+    {
+      id: 1,
+      name: 'نظام 50 كيلوواط صناعي (Deye + Jinko)',
+      quotation: { ...quotation },
+      customItems: [...customItems]
+    }
+  ]);
+  const [templateNameInput, setTemplateNameInput] = useState<string>('');
+
+  const saveCurrentTemplate = () => {
+    if (!templateNameInput.trim()) return;
+    setSavedTemplates(prev => [
+      ...prev,
+      {
+        id: Date.now(),
+        name: templateNameInput,
+        quotation: JSON.parse(JSON.stringify(quotation)),
+        customItems: JSON.parse(JSON.stringify(customItems))
+      }
+    ]);
+    setTemplateNameInput('');
+  };
+
+  const loadTemplate = (tmpl: any) => {
+    setQuotation(JSON.parse(JSON.stringify(tmpl.quotation)));
+    setCustomItems(JSON.parse(JSON.stringify(tmpl.customItems || [])));
+  };
+
+  const deleteTemplate = (id: number) => {
+    setSavedTemplates(prev => prev.filter(t => t.id !== id));
+  };
+
+  const sendQuotationWhatsApp = () => {
+    const text = encodeURIComponent(
+      `☀️ *شركة روافد لحلول الطاقة* ☀️\n` +
+      `📌 *عرض سعر رسمي: ${quotation.projectName}*\n` +
+      `👤 *الزبون:* ${quotation.clientName}\n` +
+      `📞 *هاتف:* ${quotation.clientPhone}\n` +
+      `📍 *العنوان:* ${quotation.clientAddress}\n` +
+      `📅 *التاريخ:* ${quotation.issueDate}\n\n` +
+      `⚙️ *المكونات الرئيسية:*\n` +
+      `• ${quotation.inverterName} (العدد: ${quotation.inverterQty})\n` +
+      `• ${quotation.batteryName} (العدد: ${quotation.batteryQty})\n` +
+      `• ${quotation.panelName} (العدد: ${quotation.panelQty})\n` +
+      `• ${quotation.structureName}\n` +
+      `• ${quotation.protectionName}\n` +
+      `• ${quotation.laborName}\n\n` +
+      `💰 *المجموع النهائي:* ${totalQuotationAmount.toLocaleString()} ${currencySymbol}\n\n` +
+      `إدارة: م. مالك حريبات (0594345464) • م. عز الدين بدارين (0599973304)`
+    );
+    window.open(`https://wa.me/?text=${text}`, '_blank');
   };
 
   // Calculator State
@@ -432,10 +493,7 @@ export default function App() {
     quotation.currency === 'ILS' ? '₪' :
     quotation.currency === 'JOD' ? 'JD' : '€';
 
-  const currencyMultiplier = 
-    quotation.currency === 'USD' ? 1 :
-    quotation.currency === 'ILS' ? 3.7 :
-    quotation.currency === 'JOD' ? 0.71 : 0.92;
+  const currencyMultiplier = 1;
 
   // Quotation Calculations with Currency & Custom Items
   const baseStandardItemsTotal = 
@@ -443,12 +501,13 @@ export default function App() {
     (quotation.batteryQty * quotation.batteryPrice) +
     (quotation.panelQty * quotation.panelPrice) +
     (quotation.structureQty * quotation.structurePrice) +
-    (quotation.protectionQty * quotation.protectionPrice);
+    (quotation.protectionQty * quotation.protectionPrice) +
+    (quotation.laborQty * quotation.laborPrice);
 
   const customItemsTotal = customItems.reduce((sum, item) => sum + (item.qty * item.price), 0);
 
-  const subtotalQuotation = (baseStandardItemsTotal + customItemsTotal) * currencyMultiplier;
-  const totalQuotationAmount = Math.max(0, subtotalQuotation - (quotation.discount * currencyMultiplier));
+  const subtotalQuotation = baseStandardItemsTotal + customItemsTotal;
+  const totalQuotationAmount = Math.max(0, subtotalQuotation - quotation.discount);
 
   // Calculator Math
   const estimatedSystemSize = Math.round(monthlyBill / 180); // kW
@@ -952,6 +1011,52 @@ export default function App() {
               </h4>
 
               <div className="space-y-4 text-xs">
+                {/* Saved Templates Management */}
+                <div className="bg-emerald-500/10 p-3 rounded-xl border border-emerald-500/30 space-y-3">
+                  <span className="font-bold text-emerald-700 dark:text-emerald-400">
+                    {lang === 'ar' ? 'حفظ واسترجاع العروض الجاهزة:' : 'Saved Quotation Templates:'}
+                  </span>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={templateNameInput}
+                      onChange={(e) => setTemplateNameInput(e.target.value)}
+                      placeholder={lang === 'ar' ? 'اسم العرض (مثل: نظام 50 كيلو صناعي)' : 'Template name'}
+                      className="flex-1 p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                    />
+                    <button
+                      onClick={saveCurrentTemplate}
+                      className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-lg text-xs transition-colors shrink-0"
+                    >
+                      {lang === 'ar' ? 'حفظ العرض' : 'Save'}
+                    </button>
+                  </div>
+
+                  {savedTemplates.length > 0 && (
+                    <div className="space-y-1.5 pt-2 border-t border-emerald-500/20 max-h-36 overflow-y-auto">
+                      {savedTemplates.map((tmpl) => (
+                        <div key={tmpl.id} className="flex items-center justify-between bg-white dark:bg-slate-900 p-2 rounded border border-slate-200 dark:border-slate-800 text-[11px]">
+                          <span className="font-bold truncate max-w-[180px]">{tmpl.name}</span>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => loadTemplate(tmpl)}
+                              className="px-2 py-1 bg-amber-500 text-white rounded font-bold hover:bg-amber-600"
+                            >
+                              {lang === 'ar' ? 'تحميل' : 'Load'}
+                            </button>
+                            <button
+                              onClick={() => deleteTemplate(tmpl.id)}
+                              className="text-rose-500 hover:text-rose-700"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Currency, Line Prices & Terms Toggles */}
                 <div className="grid grid-cols-3 gap-2 bg-amber-500/10 p-3 rounded-xl border border-amber-500/30">
                   <div className="space-y-1">
@@ -1106,6 +1211,23 @@ export default function App() {
                   </div>
                 </div>
 
+                {/* Labor & Engineering Wages */}
+                <div className="p-3 rounded-xl bg-slate-100 dark:bg-slate-900 space-y-2 border border-slate-200 dark:border-slate-800">
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{lang === 'ar' ? '6. أجور العمال والمهندسين والتركيب:' : '6. Labor & Engineering:'}</span>
+                  <input
+                    type="text"
+                    value={quotation.laborName}
+                    onChange={(e) => setQuotation({ ...quotation, laborName: e.target.value })}
+                    placeholder="مواصفات وتفاصيل الأجور"
+                    className="w-full p-2 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-xs"
+                  />
+                  <div className="grid grid-cols-3 gap-2">
+                    <input type="text" value={quotation.laborWarranty} onChange={(e) => setQuotation({ ...quotation, laborWarranty: e.target.value })} placeholder="الكفالة" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px]" />
+                    <input type="number" value={quotation.laborQty} onChange={(e) => setQuotation({ ...quotation, laborQty: Number(e.target.value) })} placeholder="العدد" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                    <input type="number" value={quotation.laborPrice} onChange={(e) => setQuotation({ ...quotation, laborPrice: Number(e.target.value) })} placeholder="السعر" className="p-1.5 rounded border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-950 text-[11px] font-mono" />
+                  </div>
+                </div>
+
                 {/* ADD CUSTOM ITEM SECTION (e.g. ATS Breakers) */}
                 <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/30 space-y-3">
                   <span className="font-bold text-emerald-700 dark:text-emerald-400">
@@ -1173,8 +1295,19 @@ export default function App() {
             </div>
 
             {/* Official Printable Quotation Document View */}
-            <div className="lg:col-span-7 bg-white text-slate-900 p-8 md:p-12 rounded-3xl shadow-2xl border border-slate-300 print:shadow-none print:border-none print:w-full space-y-8" id="printable-quotation">
+            <div className="lg:col-span-7 bg-white text-slate-900 p-8 md:p-12 rounded-3xl shadow-2xl border border-slate-300 print:shadow-none print:border-none print:w-full relative overflow-hidden" id="printable-quotation">
               
+              {/* Background Watermark Logo */}
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-0">
+                <img
+                  src="/assets/aistudio/Rawafed_Renewable_Energy_Logo_614c1e0c.png"
+                  alt="Watermark Logo"
+                  className="w-[420px] h-[420px] object-contain opacity-[0.07]"
+                  referrerPolicy="no-referrer"
+                />
+              </div>
+
+              <div className="relative z-10 space-y-8">
               {/* Header */}
               <div className="flex items-center justify-between border-b-2 border-slate-900 pb-6">
                 <div className="flex items-center gap-4">
@@ -1296,7 +1429,21 @@ export default function App() {
                       <td className="py-3 px-2 text-center font-mono">{quotation.protectionQty}</td>
                       {quotation.showLinePrices && (
                         <td className="py-3 px-2 text-center font-mono font-bold">
-                          {(quotation.protectionQty * quotation.protectionPrice * currencyMultiplier).toLocaleString()} {currencySymbol}
+                          {(quotation.protectionQty * quotation.protectionPrice).toLocaleString()} {currencySymbol}
+                        </td>
+                      )}
+                    </tr>
+
+                    <tr>
+                      <td className="py-3 px-2 font-bold">
+                        <div>{lang === 'ar' ? '6. أجور العمال والمهندسين والتركيب:' : '6. Labor & Engineering:'}</div>
+                        <div className="text-slate-600 font-normal text-[11px]">{quotation.laborName}</div>
+                      </td>
+                      <td className="py-3 px-2 font-semibold text-emerald-700">{quotation.laborWarranty}</td>
+                      <td className="py-3 px-2 text-center font-mono">{quotation.laborQty}</td>
+                      {quotation.showLinePrices && (
+                        <td className="py-3 px-2 text-center font-mono font-bold">
+                          {(quotation.laborQty * quotation.laborPrice).toLocaleString()} {currencySymbol}
                         </td>
                       )}
                     </tr>
@@ -1305,13 +1452,13 @@ export default function App() {
                     {customItems.map((ci, idx) => (
                       <tr key={ci.id}>
                         <td className="py-3 px-2 font-bold">
-                          <div>6.{idx + 1}. {ci.name}</div>
+                          <div>7.{idx + 1}. {ci.name}</div>
                         </td>
                         <td className="py-3 px-2 font-semibold text-emerald-700">{ci.warranty}</td>
                         <td className="py-3 px-2 text-center font-mono">{ci.qty}</td>
                         {quotation.showLinePrices && (
                           <td className="py-3 px-2 text-center font-mono font-bold">
-                            {(ci.qty * ci.price * currencyMultiplier).toLocaleString()} {currencySymbol}
+                            {(ci.qty * ci.price).toLocaleString()} {currencySymbol}
                           </td>
                         )}
                       </tr>
@@ -1369,17 +1516,25 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Print Button at Bottom */}
-              <div className="pt-4 print:hidden text-center">
+              {/* Print & WhatsApp Buttons at Bottom */}
+              <div className="pt-4 print:hidden flex flex-wrap items-center justify-center gap-4">
                 <button
                   onClick={() => window.print()}
-                  className="px-8 py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-xl hover:opacity-95 transition-all flex items-center justify-center gap-2 mx-auto"
+                  className="px-6 py-3.5 text-sm font-bold text-white energy-gradient rounded-xl shadow-xl hover:opacity-95 transition-all flex items-center justify-center gap-2"
                 >
                   <Printer className="w-5 h-5" />
-                  <span>{lang === 'ar' ? 'طباعة عرض السعر الرسمي للزبون' : 'Print Official Quotation PDF'}</span>
+                  <span>{lang === 'ar' ? 'طباعة عرض السعر (PDF)' : 'Print Official PDF'}</span>
+                </button>
+                <button
+                  onClick={sendQuotationWhatsApp}
+                  className="px-6 py-3.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xl transition-all flex items-center justify-center gap-2"
+                >
+                  <MessageCircle className="w-5 h-5" />
+                  <span>{lang === 'ar' ? 'إرسال تفاصيل العرض عبر واتساب' : 'Send via WhatsApp'}</span>
                 </button>
               </div>
 
+              </div>
             </div>
           </div>
         </main>
